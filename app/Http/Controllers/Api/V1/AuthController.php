@@ -8,6 +8,8 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
 
+use Illuminate\Support\Facades\Storage;
+
 class AuthController extends Controller
 {
     // Phương thức register (đã có)
@@ -79,6 +81,42 @@ class AuthController extends Controller
 
             // Trả về thông tin người dùng
             return response()->json($user, 200);
+        } catch (\Exception $e) {
+            return response()->json(['error' => $e->getMessage()], 500);
+        }
+    }
+
+    public function updateAvatar(Request $request)
+    {
+        try {
+            $validator = Validator::make($request->all(), [
+                'avatar' => 'required|image|mimes:jpeg,png,jpg|max:2048',
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json(['error' => $validator->errors()], 422);
+            }
+
+            $user = auth()->user();
+
+            if ($request->hasFile('avatar')) {
+                if ($user->avatar) {
+                    Storage::disk('public')->delete($user->avatar);
+                }
+
+                $avatarPath = $request->file('avatar')->store('avatars', 'public');
+                $user->avatar = $avatarPath;
+                $user->save();
+
+                $avatarUrl = Storage::url($avatarPath);
+
+                return response()->json([
+                    'message' => 'Avatar updated successfully.',
+                    'avatar_url' => $avatarUrl,
+                ], 200);
+            }
+
+            return response()->json(['error' => 'No avatar file uploaded.'], 422);
         } catch (\Exception $e) {
             return response()->json(['error' => $e->getMessage()], 500);
         }

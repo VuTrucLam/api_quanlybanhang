@@ -22,5 +22,6 @@ Route::prefix('v1')->group(function () {
             return response()->json(auth()->user());
         });
         Route::get('/profile', [AuthController::class, 'profile']);
+        Route::post('/profile/avatar', [AuthController::class, 'updateAvatar']);
     });
 });
