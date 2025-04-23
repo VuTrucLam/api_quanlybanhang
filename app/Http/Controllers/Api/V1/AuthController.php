@@ -160,4 +160,28 @@ class AuthController extends Controller
             return response()->json(['error' => $e->getMessage()], 500);
         }
     }
+    public function deleteAccount(Request $request)
+    {
+        try {
+            // Lấy người dùng hiện tại
+            $user = auth()->user();
+
+            // Xóa avatar nếu có
+            if ($user->avatar) {
+                Storage::disk('public')->delete($user->avatar);
+            }
+
+            // Xóa token của người dùng (Passport)
+            $user->tokens()->delete();
+
+            // Xóa tài khoản người dùng
+            $user->delete();
+
+            return response()->json([
+                'message' => 'Account deleted successfully.',
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json(['error' => $e->getMessage()], 500);
+        }
+    }
 }
