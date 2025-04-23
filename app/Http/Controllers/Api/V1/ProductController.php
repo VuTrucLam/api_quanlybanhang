@@ -41,4 +41,11 @@ class ProductController extends Controller
             'product' => $product
         ], 201); // Sử dụng mã 201 cho hành động tạo mới
     }
+    public function show($id)
+    {
+        $product = Product::where('slug',$id)->orWhere('id', $id)->first();
+        return response()->json([
+            'product' => $product
+        ], 201);
+    }
 }

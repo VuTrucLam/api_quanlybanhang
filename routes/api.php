@@ -30,5 +30,6 @@ Route::prefix('v1')->group(function () {
 
         //Product
         Route::post('/product/add', [ProductController::class, 'addProduct']);
+        Route::get('/product/view/{id}', [ProductController::class, 'show']);
     });
 });
