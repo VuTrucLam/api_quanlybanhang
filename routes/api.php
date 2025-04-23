@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\V1\UserController;
 Route::prefix('v1')->group(function () {
     // Public API: Không yêu cầu xác thực
     Route::post('/register', [AuthController::class, 'register']);
+    Route::post('/login', [AuthController::class, 'login']); // Thêm route login
 
     // Route testapi
     Route::get('/testapi', function () {
@@ -17,7 +18,8 @@ Route::prefix('v1')->group(function () {
 
     // Các API được bảo vệ bởi Passport token
     Route::middleware('auth:api')->group(function () {
-        // Ví dụ: API lấy thông tin người dùng (sẽ thêm sau)
-        // Route::get('/user', [UserController::class, 'getUser']);
+        Route::get('/user', function () {
+            return response()->json(auth()->user());
+        });
     });
 });
