@@ -10,6 +10,8 @@ use Illuminate\Support\Facades\Validator;
 
 use Illuminate\Support\Facades\Storage;
 
+use Illuminate\Support\Facades\Route;
+
 class AuthController extends Controller
 {
     // Phương thức register (đã có)
@@ -117,6 +119,43 @@ class AuthController extends Controller
             }
 
             return response()->json(['error' => 'No avatar file uploaded.'], 422);
+        } catch (\Exception $e) {
+            return response()->json(['error' => $e->getMessage()], 500);
+        }
+    }
+    public function updateProfile(Request $request)
+    {
+        try {
+            // Xác thực dữ liệu đầu vào
+            $validator = Validator::make($request->all(), [
+                'name' => 'required|string|max:255',
+                'email' => 'required|string|email|max:255|unique:users,email,' . auth()->id(),
+                'phone' => 'nullable|string|max:20',
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json(['error' => $validator->errors()], 422);
+            }
+
+            // Lấy người dùng hiện tại
+            $user = auth()->user();
+
+            // Cập nhật thông tin
+            $user->name = $request->name;
+            $user->email = $request->email;
+            $user->phone = $request->phone;
+            $user->save();
+
+            // Tạo URL avatar nếu có
+            $userData = $user->toArray();
+            if ($user->avatar) {
+                $userData['avatar_url'] = url('/storage/' . $user->avatar);
+            }
+
+            return response()->json([
+                'message' => 'Profile updated successfully.',
+                'user' => $userData,
+            ], 200);
         } catch (\Exception $e) {
             return response()->json(['error' => $e->getMessage()], 500);
         }

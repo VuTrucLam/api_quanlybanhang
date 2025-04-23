@@ -23,5 +23,6 @@ Route::prefix('v1')->group(function () {
         });
         Route::get('/profile', [AuthController::class, 'profile']);
         Route::post('/profile/avatar', [AuthController::class, 'updateAvatar']);
+        Route::put('/profile/update', [AuthController::class, 'updateProfile'])->name('profile.update');
     });
 });
