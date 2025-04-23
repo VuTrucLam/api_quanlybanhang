@@ -70,4 +70,17 @@ class AuthController extends Controller
             return response()->json(['error' => $e->getMessage()], 500);
         }
     }
+    // Phương thức profile (mới)
+    public function profile(Request $request)
+    {
+        try {
+            // Lấy người dùng hiện tại từ token
+            $user = auth()->user();
+
+            // Trả về thông tin người dùng
+            return response()->json($user, 200);
+        } catch (\Exception $e) {
+            return response()->json(['error' => $e->getMessage()], 500);
+        }
+    }
 }

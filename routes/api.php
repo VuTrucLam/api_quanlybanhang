@@ -21,5 +21,6 @@ Route::prefix('v1')->group(function () {
         Route::get('/user', function () {
             return response()->json(auth()->user());
         });
+        Route::get('/profile', [AuthController::class, 'profile']);
     });
 });
