@@ -184,4 +184,46 @@ class AuthController extends Controller
             return response()->json(['error' => $e->getMessage()], 500);
         }
     }
+    public function searchUser(Request $request)
+    {
+        try {
+            // Xác thực tham số đầu vào
+            $validator = Validator::make($request->query(), [
+                'keyword' => 'required|string|min:1',
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json(['error' => $validator->errors()], 422);
+            }
+
+            // Lấy từ khóa tìm kiếm
+            $keyword = $request->query('keyword');
+
+            // Tìm kiếm người dùng theo username hoặc email
+            $users = User::where('username', 'like', "%{$keyword}%")
+                        ->orWhere('email', 'like', "%{$keyword}%")
+                        ->get();
+
+            // Nếu không tìm thấy người dùng
+            if ($users->isEmpty()) {
+                return response()->json(['message' => 'No users found.'], 404);
+            }
+
+            // Thêm avatar_url vào kết quả
+            $usersData = $users->map(function ($user) {
+                $userData = $user->toArray();
+                $userData['avatar_url'] = $user->avatar ? url('/storage/' . $user->avatar) : null;
+                return $userData;
+            });
+
+            return response()->json([
+                'user' => $usersData,
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'Failed to search users.',
+                'message' => $e->getMessage()
+            ], 500);
+        }
+    }
 }

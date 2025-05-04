@@ -26,6 +26,7 @@ Route::prefix('v1')->group(function () {
         Route::post('/profile/avatar', [AuthController::class, 'updateAvatar']);
         Route::put('/profile/update', [AuthController::class, 'updateProfile'])->name('profile.update');
         Route::delete('/profile/delete', [AuthController::class, 'deleteAccount']);
+        Route::get('/search-user', [AuthController::class, 'searchUser']);
 
 
         //Product
