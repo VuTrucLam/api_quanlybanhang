@@ -226,4 +226,30 @@ class AuthController extends Controller
             ], 500);
         }
     }
+    public function getFriends(Request $request)
+    {
+        try {
+            // Lấy người dùng hiện tại
+            $user = auth()->user();
+
+            // Lấy danh sách bạn bè (status = accepted)
+            $friends = $user->friends()->get();
+
+            // Thêm avatar_url vào kết quả
+            $friendsData = $friends->map(function ($friend) {
+                $friendData = $friend->toArray();
+                $friendData['avatar_url'] = $friend->avatar ? url('/storage/' . $friend->avatar) : null;
+                return $friendData;
+            });
+
+            return response()->json([
+                'friends' => $friendsData,
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'Failed to get friends.',
+                'message' => $e->getMessage()
+            ], 500);
+        }
+    }
 }

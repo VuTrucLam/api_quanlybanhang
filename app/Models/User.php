@@ -39,6 +39,27 @@ class User extends Authenticatable
         'remember_token',
     ];
 
+    // Quan hệ: Người dùng gửi lời mời
+    public function sentFriendRequests()
+    {
+        return $this->hasMany(Friend::class, 'user_id');
+    }
+
+    // Quan hệ: Người dùng nhận lời mời
+    public function receivedFriendRequests()
+    {
+        return $this->hasMany(Friend::class, 'friend_id');
+    }
+
+    // Lấy danh sách bạn bè (status = accepted)
+    public function friends()
+    {
+        return $this->belongsToMany(User::class, 'friends', 'user_id', 'friend_id')
+                    ->wherePivot('status', 'accepted')
+                    ->orWherePivot('status', 'accepted')
+                    ->withTimestamps();
+    }
+
     /**
      * Get the attributes that should be cast.
      *
