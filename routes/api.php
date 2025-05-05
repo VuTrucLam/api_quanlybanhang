@@ -29,6 +29,7 @@ Route::prefix('v1')->group(function () {
         Route::get('/search-user', [AuthController::class, 'searchUser']);
         Route::get('/friends', [AuthController::class, 'getFriends']);
         Route::post('/add-friend', [AuthController::class, 'addFriend']);
+        Route::delete('/friends/{id}', [AuthController::class, 'removeFriend']);
 
 
         //Product

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Models\Friend;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
@@ -294,6 +295,33 @@ class AuthController extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 'error' => 'Failed to send friend request.',
+                'message' => $e->getMessage(),
+            ], 500);
+        }
+    }
+    public function removeFriend(Request $request, $id)
+    {
+        try {
+            $user = auth()->user();
+            $friendship = Friend::where('id', $id)
+                            ->where(function ($query) use ($user) {
+                                $query->where('user_id', $user->id)
+                                        ->orWhere('friend_id', $user->id);
+                            })
+                            ->first();
+
+            if (!$friendship) {
+                return response()->json(['message' => 'Friendship not found.'], 404);
+            }
+
+            $friendship->delete();
+
+            return response()->json([
+                'message' => 'Friend removed successfully.',
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'Failed to remove friend.',
                 'message' => $e->getMessage(),
             ], 500);
         }
