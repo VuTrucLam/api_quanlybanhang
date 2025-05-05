@@ -352,4 +352,59 @@ class AuthController extends Controller
             ], 500);
         }
     }
+    public function acceptFriend(Request $request)
+    {
+        try {
+            // Xác thực dữ liệu đầu vào
+            $validator = Validator::make($request->all(), [
+                'user_id' => 'required|integer|exists:users,id',
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json(['error' => $validator->errors()], 422);
+            }
+
+            // Lấy người dùng hiện tại
+            $user = auth()->user();
+
+            // Tìm lời mời kết bạn (pending) từ user_id gửi đến người dùng hiện tại
+            $friendRequest = Friend::where('user_id', $request->user_id)
+                                  ->where('friend_id', $user->id)
+                                  ->where('status', 'pending')
+                                  ->first();
+
+            // Kiểm tra xem lời mời có tồn tại không
+            if (!$friendRequest) {
+                return response()->json(['message' => 'Friend request not found.'], 404);
+            }
+
+            // Cập nhật trạng thái thành accepted
+            $friendRequest->status = 'accepted';
+            $friendRequest->save();
+
+            // (Tùy chọn) Thêm mối quan hệ ngược lại (từ friend_id đến user_id)
+            $reverseFriendship = Friend::where('user_id', $user->id)
+                                      ->where('friend_id', $request->user_id)
+                                      ->where('status', 'accepted')
+                                      ->first();
+
+            if (!$reverseFriendship) {
+                Friend::create([
+                    'user_id' => $user->id,
+                    'friend_id' => $request->user_id,
+                    'status' => 'accepted',
+                    'alias' => $friendRequest->alias,
+                ]);
+            }
+
+            return response()->json([
+                'message' => 'Friend request accepted!',
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'Failed to accept friend request.',
+                'message' => $e->getMessage(),
+            ], 500);
+        }
+    }
 }
