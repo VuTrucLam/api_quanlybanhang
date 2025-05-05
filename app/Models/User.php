@@ -59,7 +59,8 @@ class User extends Authenticatable
         return $this->belongsToMany(User::class, 'friends', 'user_id', 'friend_id')
                     ->wherePivot('status', 'accepted')
                     ->withPivot('alias')
-                    ->withTimestamps();
+                    ->withTimestamps()
+                    ->select('users.id', 'users.name', 'users.avatar');// Chỉ định rõ các cột từ bảng users
     }
 
     // Thêm quan hệ để lấy tất cả yêu cầu bạn bè (bao gồm pending)

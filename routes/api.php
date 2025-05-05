@@ -33,6 +33,7 @@ Route::prefix('v1')->group(function () {
         Route::get('/friend-requests', [AuthController::class, 'getFriendRequests']);
         Route::post('/accept-friend', [AuthController::class, 'acceptFriend']);
         Route::post('/reject-friend', [AuthController::class, 'rejectFriend']);
+        Route::post('/get-user-profiles', [AuthController::class, 'getUserProfiles']);
 
 
         //Product

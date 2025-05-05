@@ -447,4 +447,43 @@ class AuthController extends Controller
             ], 500);
         }
     }
+    public function getUserProfiles(Request $request)
+    {
+        try {
+            // Xác thực dữ liệu đầu vào
+            $validator = Validator::make($request->all(), [
+                'user_ids' => 'required|array',
+                'user_ids.*' => 'integer|exists:users,id',
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json(['error' => $validator->errors()], 422);
+            }
+
+            // Lấy người dùng hiện tại
+            $currentUser = auth()->user();
+
+            // Lấy danh sách bạn bè của người dùng hiện tại
+            $friendIds = $currentUser->friends()->pluck('users.id')->toArray();
+
+            // Lọc các user_ids chỉ lấy những người là bạn bè
+            $validUserIds = array_intersect($request->user_ids, $friendIds);
+
+            // Lấy thông tin hồ sơ của các bạn bè
+            $profiles = User::whereIn('id', $validUserIds)->get()->map(function ($user) {
+                return [
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'avatar' => $user->avatar ? url('/storage/' . $user->avatar) : null,
+                ];
+            });
+
+            return response()->json($profiles, 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'Failed to get user profiles.',
+                'message' => $e->getMessage(),
+            ], 500);
+        }
+    }
 }
