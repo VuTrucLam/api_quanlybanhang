@@ -5,11 +5,8 @@ namespace App\Models;
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
-
 use Laravel\Passport\HasApiTokens;
-
 use Illuminate\Notifications\Notifiable;
-
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class User extends Authenticatable
@@ -48,19 +45,22 @@ class User extends Authenticatable
     }
 
     // Quan hệ: Người dùng nhận lời mời
-    public function receivedFriendRequests()
+    public function receivedFriendRequests(): BelongsToMany
     {
-        return $this->hasMany(Friend::class, 'friend_id');
+        return $this->belongsToMany(User::class, 'friends', 'friend_id', 'user_id')
+                    ->wherePivot('status', 'pending')
+                    ->withTimestamps()
+                    ->select('users.id', 'users.name', 'users.avatar');
     }
 
-    // Lấy danh sách bạn bè (status = accepted)
+    //Lấy danh sách bạn bè (status = accepted)
     public function friends(): BelongsToMany
-{
-    return $this->belongsToMany(User::class, 'friends', 'user_id', 'friend_id')
-                ->wherePivot('status', 'accepted')
-                ->withPivot('alias')
-                ->withTimestamps();
-}
+    {
+        return $this->belongsToMany(User::class, 'friends', 'user_id', 'friend_id')
+                    ->wherePivot('status', 'accepted')
+                    ->withPivot('alias')
+                    ->withTimestamps();
+    }
 
     // Thêm quan hệ để lấy tất cả yêu cầu bạn bè (bao gồm pending)
     public function friendRequests(): BelongsToMany
@@ -69,6 +69,7 @@ class User extends Authenticatable
                     ->withPivot('status', 'alias')
                     ->withTimestamps();
     }
+
 
     /**
      * Get the attributes that should be cast.
