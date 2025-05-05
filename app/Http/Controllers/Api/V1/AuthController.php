@@ -407,4 +407,44 @@ class AuthController extends Controller
             ], 500);
         }
     }
+    public function rejectFriend(Request $request)
+    {
+        try {
+            // Xác thực dữ liệu đầu vào
+            $validator = Validator::make($request->all(), [
+                'user_id' => 'required|integer|exists:users,id',
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json(['error' => $validator->errors()], 422);
+            }
+
+            // Lấy người dùng hiện tại
+            $user = auth()->user();
+
+            // Tìm lời mời kết bạn (pending) từ user_id gửi đến người dùng hiện tại
+            $friendRequest = Friend::where('user_id', $request->user_id)
+                                ->where('friend_id', $user->id)
+                                ->where('status', 'pending')
+                                ->first();
+
+            // Kiểm tra xem lời mời có tồn tại không
+            if (!$friendRequest) {
+                return response()->json(['message' => 'Friend request not found.'], 404);
+            }
+
+            // Cập nhật trạng thái thành rejected
+            $friendRequest->status = 'rejected';
+            $friendRequest->save();
+
+            return response()->json([
+                'message' => 'Friend request rejected.',
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'Failed to reject friend request.',
+                'message' => $e->getMessage(),
+            ], 500);
+        }
+    }
 }
