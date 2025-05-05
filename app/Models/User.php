@@ -10,6 +10,8 @@ use Laravel\Passport\HasApiTokens;
 
 use Illuminate\Notifications\Notifiable;
 
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+
 class User extends Authenticatable
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */
@@ -52,11 +54,19 @@ class User extends Authenticatable
     }
 
     // Lấy danh sách bạn bè (status = accepted)
-    public function friends()
+    public function friends(): BelongsToMany
+{
+    return $this->belongsToMany(User::class, 'friends', 'user_id', 'friend_id')
+                ->wherePivot('status', 'accepted')
+                ->withPivot('alias')
+                ->withTimestamps();
+}
+
+    // Thêm quan hệ để lấy tất cả yêu cầu bạn bè (bao gồm pending)
+    public function friendRequests(): BelongsToMany
     {
         return $this->belongsToMany(User::class, 'friends', 'user_id', 'friend_id')
-                    ->wherePivot('status', 'accepted')
-                    ->orWherePivot('status', 'accepted')
+                    ->withPivot('status', 'alias')
                     ->withTimestamps();
     }
 

@@ -7,5 +7,5 @@ use Illuminate\Database\Eloquent\Model;
 class Friend extends Model
 {
     protected $table = 'friends';
-    protected $fillable = ['user_id', 'friend_id', 'status'];
+    protected $fillable = ['user_id', 'friend_id', 'status', 'alias'];
 }

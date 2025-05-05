@@ -252,4 +252,50 @@ class AuthController extends Controller
             ], 500);
         }
     }
+
+    public function addFriend(Request $request)
+    {
+        try {
+            // Xác thực dữ liệu đầu vào
+            $validator = Validator::make($request->all(), [
+                'friend_username' => 'required|string|exists:users,username',
+                'friend_alias' => 'nullable|string|max:50',
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json(['error' => $validator->errors()], 422);
+            }
+
+            // Lấy người dùng hiện tại
+            $user = auth()->user();
+
+            // Tìm người bạn theo username
+            $friend = User::where('username', $request->friend_username)->first();
+
+            // Kiểm tra nếu gửi yêu cầu cho chính mình
+            if ($user->id === $friend->id) {
+                return response()->json(['message' => 'You cannot add yourself as a friend.'], 400);
+            }
+
+            // Kiểm tra nếu đã gửi yêu cầu hoặc đã là bạn
+            if ($user->friendRequests()->where('friend_id', $friend->id)->exists()) {
+                return response()->json(['message' => 'Friend request already sent.'], 409);
+            }
+
+            // Thêm yêu cầu bạn bè với trạng thái pending
+            $user->friendRequests()->attach($friend->id, [
+                'status' => 'pending',
+                'alias' => $request->friend_alias,
+            ]);
+
+            return response()->json([
+                'message' => 'Friend request sent successfully.',
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'Failed to send friend request.',
+                'message' => $e->getMessage(),
+            ], 500);
+        }
+    }
 }

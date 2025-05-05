@@ -28,6 +28,7 @@ Route::prefix('v1')->group(function () {
         Route::delete('/profile/delete', [AuthController::class, 'deleteAccount']);
         Route::get('/search-user', [AuthController::class, 'searchUser']);
         Route::get('/friends', [AuthController::class, 'getFriends']);
+        Route::post('/add-friend', [AuthController::class, 'addFriend']);
 
 
         //Product
