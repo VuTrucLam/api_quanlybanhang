@@ -42,5 +42,6 @@ Route::prefix('v1')->group(function () {
         Route::get('/product/view/{id}', [ProductController::class, 'show']);
         Route::put('/products/{id}', [ProductController::class, 'updateProduct']);
         Route::delete('/products/{id}', [ProductController::class, 'deleteProduct']);
+        Route::get('/products/search', [ProductController::class, 'searchProducts']);
     });
 });

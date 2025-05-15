@@ -167,4 +167,39 @@ class ProductController extends Controller
             ], 500);
         }
     }
+    public function searchProducts(Request $request)
+    {
+        try {
+            // Lấy và kiểm tra tham số keyword
+            $keyword = $request->query('keyword');
+            if (!$keyword) {
+                return response()->json(['error' => 'Keyword parameter is required.'], 400);
+            }
+
+            // Lấy cat_id nếu có
+            $catId = $request->query('cat_id');
+
+            // Xây dựng query tìm kiếm
+            $query = Product::query()
+                ->where('title', 'like', "%{$keyword}%")
+                ->orWhere('summary', 'like', "%{$keyword}%");
+
+            // Lọc theo cat_id nếu được cung cấp
+            if ($catId && is_numeric($catId)) {
+                $query->where('cat_id', $catId);
+            }
+
+            // Lấy danh sách sản phẩm
+            $products = $query->get(['id', 'title', 'slug', 'photo', 'quantity', 'description', 'summary', 'price', 'cat_id']);
+
+            return response()->json([
+                'products' => $products
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'Failed to search products.',
+                'message' => $e->getMessage(),
+            ], 500);
+        }
+    }
 }
