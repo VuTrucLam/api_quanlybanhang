@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\V1\UserController;
 use App\Http\Controllers\Api\V1\ProductController;
 use App\Http\Controllers\Api\V1\CategoryController;
 use App\Http\Controllers\Api\V1\WarehouseController;
+use App\Http\Controllers\Api\V1\SupplierController;
 
 Route::prefix('v1')->group(function () {
     // Public API: Không yêu cầu xác thực
@@ -56,5 +57,8 @@ Route::prefix('v1')->group(function () {
         //warehouses
         Route::get('/warehouses', [WarehouseController::class, 'getWarehouses']);
         Route::post('/warehouses', [WarehouseController::class, 'storeWarehouse']);
+
+        //suppliers
+        Route::get('/suppliers', [SupplierController::class, 'getSuppliers']);
     });
 });
