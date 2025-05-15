@@ -9,6 +9,7 @@ Route::prefix('v1')->group(function () {
     // Public API: Không yêu cầu xác thực
     Route::post('/register', [AuthController::class, 'register']);
     Route::post('/login', [AuthController::class, 'login']); // Thêm route login
+    Route::get('/products', [ProductController::class, 'getProducts']);
 
     // Route testapi
     Route::get('/testapi', function () {
