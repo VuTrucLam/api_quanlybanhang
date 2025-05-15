@@ -65,5 +65,6 @@ Route::prefix('v1')->group(function () {
 
         // inventory
         Route::get('/inventory', [InventoryController::class, 'getInventory']);
+        Route::post('/inventory/import', [InventoryController::class, 'importInventory']);
     });
 });
