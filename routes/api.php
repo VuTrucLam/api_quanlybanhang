@@ -50,6 +50,7 @@ Route::prefix('v1')->group(function () {
         Route::post('/categories', [CategoryController::class, 'storeCategory']);
         Route::get('/categories/{id}', [CategoryController::class, 'showCategory']);
         Route::put('/categories/{id}', [CategoryController::class, 'updateCategory']);
+        Route::delete('/categories/{id}', [CategoryController::class, 'deleteCategory']);
         
     });
 });

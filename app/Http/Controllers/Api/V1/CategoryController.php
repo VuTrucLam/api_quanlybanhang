@@ -139,4 +139,32 @@ class CategoryController extends Controller
             ], 500);
         }
     }
+    public function deleteCategory($id)
+    {
+        try {
+            // Tìm danh mục theo ID
+            $category = Category::find($id);
+
+            if (!$category) {
+                return response()->json(['message' => 'Category not found.'], 404);
+            }
+
+            // Kiểm tra xem danh mục có sản phẩm hay không
+            if ($category->products()->count() > 0) {
+                return response()->json(['message' => 'Cannot delete category because it contains products.'], 400);
+            }
+
+            // Xóa danh mục
+            $category->delete();
+
+            return response()->json([
+                'message' => 'Category deleted successfully'
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'Failed to delete category.',
+                'message' => $e->getMessage(),
+            ], 500);
+        }
+    }
 }
