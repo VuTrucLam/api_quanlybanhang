@@ -93,4 +93,50 @@ class CategoryController extends Controller
             ], 500);
         }
     }
+    public function updateCategory(Request $request, $id)
+    {
+        try {
+            // Tìm danh mục theo ID
+            $category = Category::find($id);
+
+            if (!$category) {
+                return response()->json(['message' => 'Category not found.'], 404);
+            }
+
+            // Xác thực dữ liệu đầu vào
+            $validated = $request->validate([
+                'name' => 'sometimes|string|max:255|unique:categories,name,' . $id,
+                'description' => 'sometimes|string|nullable',
+            ]);
+
+            // Cập nhật các trường chỉ khi được cung cấp
+            if ($request->has('name')) {
+                $category->name = $validated['name'];
+            }
+            if ($request->has('description')) {
+                $category->description = $validated['description'];
+            }
+
+            // Lưu thay đổi
+            $category->save();
+
+            return response()->json([
+                'message' => 'Category updated successfully',
+                'category' => [
+                    'id' => $category->id,
+                    'name' => $category->name,
+                    'description' => $category->description,
+                    'created_at' => $category->created_at,
+                    'updated_at' => $category->updated_at
+                ]
+            ], 200);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json(['error' => $e->errors()], 400);
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'Failed to update category.',
+                'message' => $e->getMessage(),
+            ], 500);
+        }
+    }
 }
