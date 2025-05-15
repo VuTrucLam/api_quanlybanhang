@@ -145,4 +145,26 @@ class ProductController extends Controller
             ], 500);
         }
     }
+    public function deleteProduct($id)
+    {
+        try {
+            // Tìm sản phẩm theo ID
+            $product = Product::find($id);
+            if (!$product) {
+                return response()->json(['message' => 'Product not found.'], 404);
+            }
+
+            // Xóa sản phẩm
+            $product->delete();
+
+            return response()->json([
+                'message' => 'Product deleted successfully'
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'Failed to delete product.',
+                'message' => $e->getMessage(),
+            ], 500);
+        }
+    }
 }
