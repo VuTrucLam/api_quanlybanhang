@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\UserController;
 use App\Http\Controllers\Api\V1\ProductController;
 use App\Http\Controllers\Api\V1\CategoryController;
+use App\Http\Controllers\Api\V1\WarehouseController;
 
 Route::prefix('v1')->group(function () {
     // Public API: Không yêu cầu xác thực
@@ -51,6 +52,8 @@ Route::prefix('v1')->group(function () {
         Route::get('/categories/{id}', [CategoryController::class, 'showCategory']);
         Route::put('/categories/{id}', [CategoryController::class, 'updateCategory']);
         Route::delete('/categories/{id}', [CategoryController::class, 'deleteCategory']);
-        
+
+        //warehouses
+        Route::get('/warehouses', [WarehouseController::class, 'getWarehouses']);
     });
 });
