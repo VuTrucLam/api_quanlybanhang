@@ -82,4 +82,67 @@ class ProductController extends Controller
             ], 500);
         }
     }
+    public function updateProduct(Request $request, $id)
+    {
+        try {
+            // Tìm sản phẩm theo ID
+            $product = Product::find($id);
+            if (!$product) {
+                return response()->json(['message' => 'Product not found.'], 404);
+            }
+
+            // Xác thực dữ liệu đầu vào
+            $validated = $request->validate([
+                'title' => 'sometimes|string|max:255',
+                'slug' => 'sometimes|string|max:255|unique:products,slug,' . $id,
+                'photo' => 'sometimes|string|nullable',
+                'quantity' => 'sometimes|integer|min:0',
+                'description' => 'sometimes|string|nullable',
+                'summary' => 'sometimes|string|nullable',
+                'price' => 'sometimes|numeric|min:0',
+                'cat_id' => 'sometimes|integer|exists:categories,id',
+            ]);
+
+            // Cập nhật các trường chỉ khi được cung cấp
+            if ($request->has('title')) {
+                $product->title = $request->title;
+            }
+            if ($request->has('slug')) {
+                $product->slug = $request->slug ?? Str::slug($request->title);
+            }
+            if ($request->has('photo')) {
+                $product->photo = $request->photo;
+            }
+            if ($request->has('quantity')) {
+                $product->quantity = $request->quantity;
+            }
+            if ($request->has('description')) {
+                $product->description = $request->description;
+            }
+            if ($request->has('summary')) {
+                $product->summary = $request->summary;
+            }
+            if ($request->has('price')) {
+                $product->price = $request->price;
+            }
+            if ($request->has('cat_id')) {
+                $product->cat_id = $request->cat_id;
+            }
+
+            // Lưu thay đổi
+            $product->save();
+
+            return response()->json([
+                'message' => 'Product updated successfully',
+                'product' => $product
+            ], 200);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json(['error' => $e->errors()], 400);
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'Failed to update product.',
+                'message' => $e->getMessage(),
+            ], 500);
+        }
+    }
 }
