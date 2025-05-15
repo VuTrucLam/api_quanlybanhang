@@ -36,4 +36,29 @@ class CategoryController extends Controller
             ], 500);
         }
     }
+    public function showCategory($id)
+    {
+        try {
+            // Tìm danh mục theo ID
+            $category = Category::find($id);
+
+            if (!$category) {
+                return response()->json(['message' => 'Category not found.'], 404);
+            }
+
+            // Trả về thông tin danh mục
+            return response()->json([
+                'id' => $category->id,
+                'name' => $category->name,
+                'description' => $category->description,
+                'created_at' => $category->created_at,
+                'updated_at' => $category->updated_at
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'Failed to fetch category.',
+                'message' => $e->getMessage(),
+            ], 500);
+        }
+    }
 }

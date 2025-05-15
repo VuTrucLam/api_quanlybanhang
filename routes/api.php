@@ -47,5 +47,6 @@ Route::prefix('v1')->group(function () {
 
         // categories
         Route::post('/categories', [CategoryController::class, 'storeCategory']);
+        Route::get('/categories/{id}', [CategoryController::class, 'showCategory']);
     });
 });
