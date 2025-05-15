@@ -61,4 +61,36 @@ class CategoryController extends Controller
             ], 500);
         }
     }
+    public function getCategories(Request $request)
+    {
+        try {
+            // Lấy tham số page và limit
+            $page = $request->query('page', 1);
+            $limit = $request->query('limit', 10);
+
+            // Kiểm tra page và limit hợp lệ
+            if (!is_numeric($page) || $page < 1) {
+                return response()->json(['error' => 'Page must be a positive integer.'], 400);
+            }
+            if (!is_numeric($limit) || $limit < 1 || $limit > 100) {
+                return response()->json(['error' => 'Limit must be between 1 and 100.'], 400);
+            }
+
+            // Lấy danh sách danh mục với phân trang
+            $categories = Category::select('id', 'name', 'description', 'created_at')
+                ->paginate($limit, ['*'], 'page', $page);
+
+            return response()->json([
+                'categories' => $categories->items(),
+                'total' => $categories->total(),
+                'page' => $categories->currentPage(),
+                'limit' => $categories->perPage(),
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'Failed to fetch categories.',
+                'message' => $e->getMessage(),
+            ], 500);
+        }
+    }
 }

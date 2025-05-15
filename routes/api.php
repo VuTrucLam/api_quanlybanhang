@@ -11,6 +11,7 @@ Route::prefix('v1')->group(function () {
     Route::post('/register', [AuthController::class, 'register']);
     Route::post('/login', [AuthController::class, 'login']); // Thêm route login
     Route::get('/products', [ProductController::class, 'getProducts']);
+    Route::get('/categories', [CategoryController::class, 'getCategories']);
 
     // Route testapi
     Route::get('/testapi', function () {
@@ -48,5 +49,6 @@ Route::prefix('v1')->group(function () {
         // categories
         Route::post('/categories', [CategoryController::class, 'storeCategory']);
         Route::get('/categories/{id}', [CategoryController::class, 'showCategory']);
+        
     });
 });
