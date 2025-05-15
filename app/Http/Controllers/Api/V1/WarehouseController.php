@@ -21,4 +21,30 @@ class WarehouseController extends Controller
             ], 500);
         }
     }
+    public function storeWarehouse(Request $request)
+    {
+        try {
+            // Xác thực dữ liệu đầu vào
+            $validated = $request->validate([
+                'name' => 'required|string|max:255',
+                'location' => 'required|string|max:255',
+                'capacity' => 'required|integer|min:1',
+            ]);
+
+            // Tạo kho mới
+            $warehouse = Warehouse::create($validated);
+
+            return response()->json([
+                'message' => 'Warehouse created successfully',
+                'warehouse_id' => $warehouse->id
+            ], 201); // 201: Created
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json(['error' => $e->errors()], 400);
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'Failed to create warehouse.',
+                'message' => $e->getMessage(),
+            ], 500);
+        }
+    }
 }

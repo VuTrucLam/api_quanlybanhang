@@ -55,5 +55,6 @@ Route::prefix('v1')->group(function () {
 
         //warehouses
         Route::get('/warehouses', [WarehouseController::class, 'getWarehouses']);
+        Route::post('/warehouses', [WarehouseController::class, 'storeWarehouse']);
     });
 });
