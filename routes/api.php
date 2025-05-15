@@ -60,5 +60,6 @@ Route::prefix('v1')->group(function () {
 
         //suppliers
         Route::get('/suppliers', [SupplierController::class, 'getSuppliers']);
+        Route::post('/suppliers', [SupplierController::class, 'storeSupplier']);
     });
 });
