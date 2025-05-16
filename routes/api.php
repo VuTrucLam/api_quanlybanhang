@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\V1\CategoryController;
 use App\Http\Controllers\Api\V1\WarehouseController;
 use App\Http\Controllers\Api\V1\SupplierController;
 use App\Http\Controllers\Api\V1\InventoryController;
+use App\Http\Controllers\Api\V1\FundController;
 
 Route::prefix('v1')->group(function () {
     // Public API: Không yêu cầu xác thực
@@ -74,5 +75,8 @@ Route::prefix('v1')->group(function () {
         Route::post('/inventory/transfer/discard', [InventoryController::class, 'discardTransfer']);
         Route::get('/inventory/discards', [InventoryController::class, 'getDiscards']);
         Route::get('/inventory/initial', [InventoryController::class, 'getInitialInventory']);
+
+        // fund
+        Route::get('/fund/revenue-types', [FundController::class, 'getRevenueTypes']);
     });
 });
