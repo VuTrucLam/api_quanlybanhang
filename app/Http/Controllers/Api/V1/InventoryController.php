@@ -9,6 +9,8 @@ use App\Models\Import;
 use App\Models\ImportDetail;
 use App\Models\Export;
 use App\Models\ExportDetail;
+use App\Models\InventoryCheck;
+use App\Models\InventoryCheckDetail;
 
 class InventoryController extends Controller
 {
@@ -232,6 +234,74 @@ class InventoryController extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 'error' => 'Failed to export inventory.',
+                'message' => $e->getMessage(),
+            ], 500);
+        }
+    }
+    public function checkInventory(Request $request)
+    {
+        try {
+            // Xác thực dữ liệu đầu vào
+            $validated = $request->validate([
+                'warehouse_id' => 'required|exists:warehouses,id',
+                'products' => 'required|array|min:1',
+                'products.*.product_id' => 'required|exists:products,id',
+                'products.*.actual_quantity' => 'required|integer|min:0',
+            ]);
+
+            // Tạo phiếu kiểm kho
+            $check = InventoryCheck::create([
+                'warehouse_id' => $validated['warehouse_id'],
+            ]);
+
+            // Lưu chi tiết kiểm kho và xác định chênh lệch
+            $discrepancies = [];
+            foreach ($validated['products'] as $product) {
+                InventoryCheckDetail::create([
+                    'inventory_check_id' => $check->id,
+                    'product_id' => $product['product_id'],
+                    'actual_quantity' => $product['actual_quantity'],
+                ]);
+
+                // So sánh với số lượng tồn kho hiện tại
+                $inventory = Inventory::where('product_id', $product['product_id'])
+                    ->where('warehouse_id', $validated['warehouse_id'])
+                    ->first();
+
+                $currentQuantity = $inventory ? $inventory->quantity : 0;
+                $difference = $product['actual_quantity'] - $currentQuantity;
+
+                if ($difference != 0) {
+                    $discrepancies[] = [
+                        'product_id' => $product['product_id'],
+                        'current_quantity' => $currentQuantity,
+                        'actual_quantity' => $product['actual_quantity'],
+                        'difference' => $difference,
+                    ];
+                }
+
+                // Cập nhật tồn kho nếu có chênh lệch
+                if ($inventory) {
+                    $inventory->update(['quantity' => $product['actual_quantity']]);
+                } elseif ($product['actual_quantity'] > 0) {
+                    Inventory::create([
+                        'product_id' => $product['product_id'],
+                        'warehouse_id' => $validated['warehouse_id'],
+                        'quantity' => $product['actual_quantity'],
+                    ]);
+                }
+            }
+
+            return response()->json([
+                'message' => 'Inventory check completed',
+                'check_id' => $check->id,
+                'discrepancies' => $discrepancies,
+            ], 201);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json(['error' => $e->errors()], 400);
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'Failed to check inventory.',
                 'message' => $e->getMessage(),
             ], 500);
         }
