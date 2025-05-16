@@ -52,34 +52,34 @@ class FundController extends Controller
         }
     }
     public function storeAccount(Request $request)
-{
-    try {
-        $validated = $request->validate([
-            'name' => 'required|string|max:255',
-            'type' => 'required|string|in:cash,bank',
-            'initial_balance' => 'nullable|numeric|min:0',
-        ]);
+    {
+        try {
+            $validated = $request->validate([
+                'name' => 'required|string|max:255',
+                'type' => 'required|string|in:cash,bank',
+                'initial_balance' => 'nullable|numeric|min:0',
+            ]);
 
-        $account = Account::create([
-            'name' => $validated['name'],
-            'type' => $validated['type'],
-            'initial_balance' => $validated['initial_balance'] ?? 0,
-            'balance' => $validated['initial_balance'] ?? 0,
-        ]);
+            $account = Account::create([
+                'name' => $validated['name'],
+                'type' => $validated['type'],
+                'initial_balance' => $validated['initial_balance'] ?? 0,
+                'balance' => $validated['initial_balance'] ?? 0,
+            ]);
 
-        return response()->json([
-            'message' => 'Account created successfully',
-            'account_id' => $account->id,
-        ], 201);
-    } catch (\Illuminate\Validation\ValidationException $e) {
-        return response()->json(['error' => $e->errors()], 400);
-    } catch (\Exception $e) {
-        return response()->json([
-            'error' => 'Failed to create account.',
-            'message' => $e->getMessage(),
-        ], 500);
+            return response()->json([
+                'message' => 'Account created successfully',
+                'account_id' => $account->id,
+            ], 201);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json(['error' => $e->errors()], 400);
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'Failed to create account.',
+                'message' => $e->getMessage(),
+            ], 500);
+        }
     }
-}
     public function getAccounts(Request $request)
     {
         try {
@@ -120,47 +120,47 @@ class FundController extends Controller
         }
     }
     public function getInitialBalance(Request $request)
-{
-    try {
-        $validated = $request->validate([
-            'account_id' => 'required|exists:accounts,id',
-            'date' => 'required|date_format:Y-m-d',
-        ]);
+    {
+        try {
+            $validated = $request->validate([
+                'account_id' => 'required|exists:accounts,id',
+                'date' => 'required|date_format:Y-m-d',
+            ]);
 
-        $accountId = $validated['account_id'];
-        $date = $validated['date'];
+            $accountId = $validated['account_id'];
+            $date = $validated['date'];
 
-        $account = Account::findOrFail($accountId);
+            $account = Account::findOrFail($accountId);
 
-        $receipts = Receipt::where('account_id', $accountId)
-            ->where('created_at', '<=', $date . ' 23:59:59')
-            ->where('created_at', '>=', $account->created_at)
-            ->get();
+            $receipts = Receipt::where('account_id', $accountId)
+                ->where('created_at', '<=', $date . ' 23:59:59')
+                ->where('created_at', '>=', $account->created_at)
+                ->get();
 
-        $initialBalance = $account->initial_balance;
+            $initialBalance = $account->initial_balance;
 
-        foreach ($receipts as $receipt) {
-            if ($receipt->type === 'receipt') {
-                $initialBalance += $receipt->amount;
-            } else {
-                $initialBalance -= $receipt->amount;
+            foreach ($receipts as $receipt) {
+                if ($receipt->type === 'receipt') {
+                    $initialBalance += $receipt->amount;
+                } else {
+                    $initialBalance -= $receipt->amount;
+                }
             }
-        }
 
-        return response()->json([
-            'account_id' => $accountId,
-            'balance' => $initialBalance,
-            'date' => $date,
-        ], 200);
-    } catch (\Illuminate\Validation\ValidationException $e) {
-        return response()->json(['error' => $e->errors()], 400);
-    } catch (\Exception $e) {
-        return response()->json([
-            'error' => 'Failed to fetch initial balance.',
-            'message' => $e->getMessage(),
-        ], 500);
+            return response()->json([
+                'account_id' => $accountId,
+                'balance' => $initialBalance,
+                'date' => $date,
+            ], 200);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json(['error' => $e->errors()], 400);
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'Failed to fetch initial balance.',
+                'message' => $e->getMessage(),
+            ], 500);
+        }
     }
-}
     public function getReceipts(Request $request)
     {
         try {
@@ -214,44 +214,105 @@ class FundController extends Controller
         }
     }
     public function storeReceipt(Request $request)
-{
-    try {
-        $validated = $request->validate([
-            'account_id' => 'required|exists:accounts,id',
-            'type' => 'required|string|in:receipt,payment',
-            'amount' => 'required|numeric|min:0',
-            'category_id' => 'required|exists:revenue_types,id',
-        ]);
+    {
+        try {
+            $validated = $request->validate([
+                'account_id' => 'required|exists:accounts,id',
+                'type' => 'required|string|in:receipt,payment',
+                'amount' => 'required|numeric|min:0',
+                'category_id' => 'required|exists:revenue_types,id',
+            ]);
 
-        $account = Account::findOrFail($validated['account_id']);
-        if ($validated['type'] === 'receipt') {
-            $account->balance += $validated['amount'];
-        } else {
-            if ($account->balance < $validated['amount']) {
-                return response()->json(['error' => 'Insufficient balance for payment.'], 400);
+            $account = Account::findOrFail($validated['account_id']);
+            if ($validated['type'] === 'receipt') {
+                $account->balance += $validated['amount'];
+            } else {
+                if ($account->balance < $validated['amount']) {
+                    return response()->json(['error' => 'Insufficient balance for payment.'], 400);
+                }
+                $account->balance -= $validated['amount'];
             }
-            $account->balance -= $validated['amount'];
+            $account->save();
+
+            $receipt = Receipt::create([
+                'account_id' => $validated['account_id'],
+                'type' => $validated['type'],
+                'amount' => $validated['amount'],
+                'category_id' => $validated['category_id'],
+            ]);
+
+            return response()->json([
+                'message' => 'Receipt created successfully',
+                'id' => $receipt->id,
+            ], 201);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json(['error' => $e->errors()], 400);
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'Failed to create receipt.',
+                'message' => $e->getMessage(),
+            ], 500);
         }
-        $account->save();
-
-        $receipt = Receipt::create([
-            'account_id' => $validated['account_id'],
-            'type' => $validated['type'],
-            'amount' => $validated['amount'],
-            'category_id' => $validated['category_id'],
-        ]);
-
-        return response()->json([
-            'message' => 'Receipt created successfully',
-            'id' => $receipt->id,
-        ], 201);
-    } catch (\Illuminate\Validation\ValidationException $e) {
-        return response()->json(['error' => $e->errors()], 400);
-    } catch (\Exception $e) {
-        return response()->json([
-            'error' => 'Failed to create receipt.',
-            'message' => $e->getMessage(),
-        ], 500);
     }
-}
+    public function getRevenueTransactions(Request $request)
+    {
+        try {
+            // Lấy tham số từ query
+            $type = $request->query('type');
+            $accountId = $request->query('account_id');
+            $startDate = $request->query('start_date');
+            $endDate = $request->query('end_date');
+
+            // Xây dựng truy vấn
+            $query = Receipt::select('id', 'account_id', 'type', 'amount', 'category_id', 'description', 'created_at');
+
+            // Lọc theo type ("in" hoặc "out") - ánh xạ từ "receipt" và "payment"
+            if ($type) {
+                $request->validate([
+                    'type' => 'string|in:in,out',
+                ]);
+                $query->where('type', $type === 'in' ? 'receipt' : 'payment');
+            }
+
+            // Lọc theo account_id nếu có
+            if ($accountId) {
+                $request->validate([
+                    'account_id' => 'integer|exists:accounts,id',
+                ]);
+                $query->where('account_id', $accountId);
+            }
+
+            // Lọc theo khoảng thời gian nếu có
+            if ($startDate) {
+                $request->validate([
+                    'start_date' => 'date_format:Y-m-d',
+                ]);
+                $query->where('created_at', '>=', $startDate . ' 00:00:00');
+            }
+
+            if ($endDate) {
+                $request->validate([
+                    'end_date' => 'date_format:Y-m-d',
+                ]);
+                $query->where('created_at', '<=', $endDate . ' 23:59:59');
+            }
+
+            // Kiểm tra start_date <= end_date
+            if ($startDate && $endDate && strtotime($startDate) > strtotime($endDate)) {
+                return response()->json(['error' => 'Start date must be before end date.'], 400);
+            }
+
+            // Lấy danh sách giao dịch
+            $transactions = $query->orderBy('created_at', 'desc')->get();
+
+            return response()->json($transactions, 200);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json(['error' => $e->errors()], 400);
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'Failed to fetch transactions.',
+                'message' => $e->getMessage(),
+            ], 500);
+        }
+    }
 }
