@@ -391,4 +391,72 @@ class InventoryController extends Controller
             ], 500);
         }
     }
+    public function repairTransfer(Request $request)
+    {
+        try {
+            // Xác thực dữ liệu đầu vào
+            $validated = $request->validate([
+                'warehouse_id' => 'required|exists:warehouses,id',
+                'products' => 'required|array|min:1',
+                'products.*.product_id' => 'required|exists:products,id',
+                'products.*.quantity' => 'required|integer|min:1',
+                'reason' => 'nullable|string',
+            ]);
+
+            // Kiểm tra tồn kho trước khi chuyển sửa chữa
+            foreach ($validated['products'] as $index => $product) {
+                $inventory = Inventory::where('product_id', $product['product_id'])
+                    ->where('warehouse_id', $validated['warehouse_id'])
+                    ->first();
+
+                if (!$inventory || $inventory->quantity < $product['quantity']) {
+                    return response()->json([
+                        'error' => 'Insufficient quantity in warehouse.',
+                        'product_id' => $product['product_id'],
+                        'available_quantity' => $inventory ? $inventory->quantity : 0,
+                    ], 400);
+                }
+            }
+
+            // Tạo phiếu chuyển kho để sửa chữa
+            $transfer = Transfer::create([
+                'from_warehouse_id' => $validated['warehouse_id'],
+                'to_warehouse_id' => null, // Không có kho đích, chuyển đến trung tâm sửa chữa
+                'type' => 'repair',
+                'reason' => $validated['reason'] ?? 'Repair transfer',
+            ]);
+
+            // Tạo chi tiết chuyển kho và cập nhật tồn kho
+            foreach ($validated['products'] as $product) {
+                TransferDetail::create([
+                    'transfer_id' => $transfer->id,
+                    'product_id' => $product['product_id'],
+                    'quantity' => $product['quantity'],
+                ]);
+
+                // Giảm số lượng trong tồn kho
+                $inventory = Inventory::where('product_id', $product['product_id'])
+                    ->where('warehouse_id', $validated['warehouse_id'])
+                    ->first();
+                $inventory->decrement('quantity', $product['quantity']);
+
+                // Xóa bản ghi tồn kho nếu quantity = 0
+                if ($inventory->quantity == 0) {
+                    $inventory->delete();
+                }
+            }
+
+            return response()->json([
+                'message' => 'Transfer for repair successful',
+                'transfer_id' => $transfer->id
+            ], 201);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json(['error' => $e->errors()], 400);
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'Failed to transfer for repair.',
+                'message' => $e->getMessage(),
+            ], 500);
+        }
+    }
 }
