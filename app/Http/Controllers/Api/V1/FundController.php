@@ -119,4 +119,37 @@ class FundController extends Controller
             ], 500);
         }
     }
+    public function getInitialBalance(Request $request)
+    {
+        try {
+            // Xác thực dữ liệu đầu vào
+            $validated = $request->validate([
+                'account_id' => 'required|exists:accounts,id',
+                'date' => 'required|date_format:Y-m-d',
+            ]);
+
+            $accountId = $validated['account_id'];
+            $date = $validated['date'];
+
+            // Lấy thông tin tài khoản
+            $account = Account::findOrFail($accountId);
+
+            // Giả định số dư đầu kỳ là initial_balance (hoặc balance tại thời điểm tạo)
+            // Trong thực tế, cần tính toán dựa trên giao dịch (sẽ mở rộng sau)
+            $initialBalance = $account->balance; // Hiện tại lấy balance hiện tại làm số dư đầu kỳ
+
+            return response()->json([
+                'account_id' => $accountId,
+                'balance' => $initialBalance,
+                'date' => $date,
+            ], 200);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json(['error' => $e->errors()], 400);
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'Failed to fetch initial balance.',
+                'message' => $e->getMessage(),
+            ], 500);
+        }
+    }
 }
