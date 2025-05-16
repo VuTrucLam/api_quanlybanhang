@@ -205,4 +205,36 @@ class FundController extends Controller
             ], 500);
         }
     }
+    public function storeReceipt(Request $request)
+    {
+        try {
+            // Xác thực dữ liệu đầu vào
+            $validated = $request->validate([
+                'account_id' => 'required|exists:accounts,id',
+                'type' => 'required|string|in:receipt,payment',
+                'amount' => 'required|numeric|min:0',
+                'category_id' => 'required|exists:revenue_types,id',
+            ]);
+
+            // Tạo phiếu thu chi mới
+            $receipt = Receipt::create([
+                'account_id' => $validated['account_id'],
+                'type' => $validated['type'],
+                'amount' => $validated['amount'],
+                'category_id' => $validated['category_id'],
+            ]);
+
+            return response()->json([
+                'message' => 'Receipt created successfully',
+                'id' => $receipt->id,
+            ], 201);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json(['error' => $e->errors()], 400);
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'Failed to create receipt.',
+                'message' => $e->getMessage(),
+            ], 500);
+        }
+    }
 }
