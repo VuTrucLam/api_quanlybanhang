@@ -7,6 +7,8 @@ use App\Models\Inventory;
 use Illuminate\Http\Request;
 use App\Models\Import;
 use App\Models\ImportDetail;
+use App\Models\Export;
+use App\Models\ExportDetail;
 
 class InventoryController extends Controller
 {
@@ -114,60 +116,124 @@ class InventoryController extends Controller
         }
     }
     public function getImports(Request $request)
-{
-    try {
-        // Lấy tham số từ query
-        $warehouseId = $request->query('warehouse_id');
-        $startDate = $request->query('start_date');
-        $endDate = $request->query('end_date');
+    {
+        try {
+            // Lấy tham số từ query
+            $warehouseId = $request->query('warehouse_id');
+            $startDate = $request->query('start_date');
+            $endDate = $request->query('end_date');
 
-        // Xây dựng truy vấn
-        $query = Import::query()
-            ->select(
-                'id as import_id',
-                'warehouse_id',
-                'supplier_id',
-                'total_amount',
-                'created_at'
-            );
+            // Xây dựng truy vấn
+            $query = Import::query()
+                ->select(
+                    'id as import_id',
+                    'warehouse_id',
+                    'supplier_id',
+                    'total_amount',
+                    'created_at'
+                );
 
-        // Lọc theo warehouse_id nếu có
-        if ($warehouseId) {
-            if (!is_numeric($warehouseId) || $warehouseId < 1) {
-                return response()->json(['error' => 'Warehouse ID must be a positive integer.'], 400);
+            // Lọc theo warehouse_id nếu có
+            if ($warehouseId) {
+                if (!is_numeric($warehouseId) || $warehouseId < 1) {
+                    return response()->json(['error' => 'Warehouse ID must be a positive integer.'], 400);
+                }
+                $query->where('warehouse_id', $warehouseId);
             }
-            $query->where('warehouse_id', $warehouseId);
-        }
 
-        // Lọc theo khoảng thời gian nếu có
-        if ($startDate) {
-            if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $startDate) || !strtotime($startDate)) {
-                return response()->json(['error' => 'Start date must be in YYYY-MM-DD format.'], 400);
+            // Lọc theo khoảng thời gian nếu có
+            if ($startDate) {
+                if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $startDate) || !strtotime($startDate)) {
+                    return response()->json(['error' => 'Start date must be in YYYY-MM-DD format.'], 400);
+                }
+                $query->where('created_at', '>=', $startDate . ' 00:00:00');
             }
-            $query->where('created_at', '>=', $startDate . ' 00:00:00');
-        }
 
-        if ($endDate) {
-            if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $endDate) || !strtotime($endDate)) {
-                return response()->json(['error' => 'End date must be in YYYY-MM-DD format.'], 400);
+            if ($endDate) {
+                if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $endDate) || !strtotime($endDate)) {
+                    return response()->json(['error' => 'End date must be in YYYY-MM-DD format.'], 400);
+                }
+                $query->where('created_at', '<=', $endDate . ' 23:59:59');
             }
-            $query->where('created_at', '<=', $endDate . ' 23:59:59');
+
+            // Kiểm tra start_date và end_date hợp lệ
+            if ($startDate && $endDate && strtotime($startDate) > strtotime($endDate)) {
+                return response()->json(['error' => 'Start date must be before end date.'], 400);
+            }
+
+            // Lấy danh sách phiếu nhập kho
+            $imports = $query->get();
+
+            return response()->json($imports, 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'Failed to fetch imports.',
+                'message' => $e->getMessage(),
+            ], 500);
         }
-
-        // Kiểm tra start_date và end_date hợp lệ
-        if ($startDate && $endDate && strtotime($startDate) > strtotime($endDate)) {
-            return response()->json(['error' => 'Start date must be before end date.'], 400);
-        }
-
-        // Lấy danh sách phiếu nhập kho
-        $imports = $query->get();
-
-        return response()->json($imports, 200);
-    } catch (\Exception $e) {
-        return response()->json([
-            'error' => 'Failed to fetch imports.',
-            'message' => $e->getMessage(),
-        ], 500);
     }
-}
+    public function exportInventory(Request $request)
+    {
+        try {
+            // Xác thực dữ liệu đầu vào
+            $validated = $request->validate([
+                'warehouse_id' => 'required|exists:warehouses,id',
+                'products' => 'required|array|min:1',
+                'products.*.product_id' => 'required|exists:products,id',
+                'products.*.quantity' => 'required|integer|min:1',
+            ]);
+
+            // Kiểm tra tồn kho trước khi xuất
+            foreach ($validated['products'] as $index => $product) {
+                $inventory = Inventory::where('product_id', $product['product_id'])
+                    ->where('warehouse_id', $validated['warehouse_id'])
+                    ->first();
+
+                if (!$inventory || $inventory->quantity < $product['quantity']) {
+                    return response()->json([
+                        'error' => 'Insufficient quantity in inventory.',
+                        'product_id' => $product['product_id'],
+                        'available_quantity' => $inventory ? $inventory->quantity : 0,
+                    ], 400);
+                }
+            }
+
+            // Tạo phiếu xuất kho
+            $export = Export::create([
+                'warehouse_id' => $validated['warehouse_id'],
+            ]);
+
+            // Tạo chi tiết xuất kho và cập nhật tồn kho
+            foreach ($validated['products'] as $product) {
+                ExportDetail::create([
+                    'export_id' => $export->id,
+                    'product_id' => $product['product_id'],
+                    'quantity' => $product['quantity'],
+                ]);
+
+                // Giảm số lượng trong tồn kho
+                $inventory = Inventory::where('product_id', $product['product_id'])
+                    ->where('warehouse_id', $validated['warehouse_id'])
+                    ->first();
+                $inventory->decrement('quantity', $product['quantity']);
+
+                // Xóa bản ghi tồn kho nếu quantity = 0
+                if ($inventory->quantity == 0) {
+                    $inventory->delete();
+                }
+            }
+
+            return response()->json([
+                'message' => 'Export successful',
+                'export_id' => $export->id
+            ], 201);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json(['error' => $e->errors()], 400);
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'Failed to export inventory.',
+                'message' => $e->getMessage(),
+            ], 500);
+        }
+    }
 }
