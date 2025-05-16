@@ -72,5 +72,6 @@ Route::prefix('v1')->group(function () {
         Route::post('/inventory/transfer/internal', [InventoryController::class, 'internalTransfer']);
         Route::post('/inventory/transfer/repair', [InventoryController::class, 'repairTransfer']);
         Route::post('/inventory/transfer/discard', [InventoryController::class, 'discardTransfer']);
+        Route::get('/inventory/discards', [InventoryController::class, 'getDiscards']);
     });
 });

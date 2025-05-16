@@ -527,4 +527,63 @@ class InventoryController extends Controller
             ], 500);
         }
     }
+    public function getDiscards(Request $request)
+    {
+        try {
+            // Lấy tham số từ query
+            $warehouseId = $request->query('warehouse_id');
+            $startDate = $request->query('start_date');
+            $endDate = $request->query('end_date');
+
+            // Xây dựng truy vấn
+            $query = TransferDetail::query()
+                ->join('transfers', 'transfer_details.transfer_id', '=', 'transfers.id')
+                ->where('transfers.type', 'discard')
+                ->select(
+                    'transfers.id as discard_id',
+                    'transfer_details.product_id',
+                    'transfer_details.quantity',
+                    'transfers.reason',
+                    'transfers.created_at'
+                );
+
+            // Lọc theo warehouse_id nếu có
+            if ($warehouseId) {
+                if (!is_numeric($warehouseId) || $warehouseId < 1) {
+                    return response()->json(['error' => 'Warehouse ID must be a positive integer.'], 400);
+                }
+                $query->where('transfers.from_warehouse_id', $warehouseId);
+            }
+
+            // Lọc theo khoảng thời gian nếu có
+            if ($startDate) {
+                if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $startDate) || !strtotime($startDate)) {
+                    return response()->json(['error' => 'Start date must be in YYYY-MM-DD format.'], 400);
+                }
+                $query->where('transfers.created_at', '>=', $startDate . ' 00:00:00');
+            }
+
+            if ($endDate) {
+                if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $endDate) || !strtotime($endDate)) {
+                    return response()->json(['error' => 'End date must be in YYYY-MM-DD format.'], 400);
+                }
+                $query->where('transfers.created_at', '<=', $endDate . ' 23:59:59');
+            }
+
+            // Kiểm tra start_date và end_date hợp lệ
+            if ($startDate && $endDate && strtotime($startDate) > strtotime($endDate)) {
+                return response()->json(['error' => 'Start date must be before end date.'], 400);
+            }
+
+            // Lấy danh sách phiếu hủy
+            $discards = $query->get();
+
+            return response()->json($discards, 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'Failed to fetch discards.',
+                'message' => $e->getMessage(),
+            ], 500);
+        }
+    }
 }
