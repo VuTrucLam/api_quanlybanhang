@@ -4,7 +4,9 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
 use App\Models\RevenueType;
+use App\Models\Account;
 use Illuminate\Http\Request;
+
 
 class FundController extends Controller
 {
@@ -44,6 +46,36 @@ class FundController extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 'error' => 'Failed to create revenue type.',
+                'message' => $e->getMessage(),
+            ], 500);
+        }
+    }
+    public function storeAccount(Request $request)
+    {
+        try {
+            // Xác thực dữ liệu đầu vào
+            $validated = $request->validate([
+                'name' => 'required|string|max:255',
+                'type' => 'required|string|in:cash,bank',
+                'initial_balance' => 'nullable|numeric|min:0',
+            ]);
+
+            // Tạo tài khoản mới
+            $account = Account::create([
+                'name' => $validated['name'],
+                'type' => $validated['type'],
+                'balance' => $validated['initial_balance'] ?? 0,
+            ]);
+
+            return response()->json([
+                'message' => 'Account created successfully',
+                'account_id' => $account->id,
+            ], 201);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json(['error' => $e->errors()], 400);
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'Failed to create account.',
                 'message' => $e->getMessage(),
             ], 500);
         }
