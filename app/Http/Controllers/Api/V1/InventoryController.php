@@ -11,6 +11,8 @@ use App\Models\Export;
 use App\Models\ExportDetail;
 use App\Models\InventoryCheck;
 use App\Models\InventoryCheckDetail;
+use App\Models\Transfer;
+use App\Models\TransferDetail;
 
 class InventoryController extends Controller
 {
@@ -302,6 +304,89 @@ class InventoryController extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 'error' => 'Failed to check inventory.',
+                'message' => $e->getMessage(),
+            ], 500);
+        }
+    }
+    public function internalTransfer(Request $request)
+    {
+        try {
+            // Xác thực dữ liệu đầu vào
+            $validated = $request->validate([
+                'from_warehouse_id' => 'required|exists:warehouses,id',
+                'to_warehouse_id' => 'required|exists:warehouses,id|different:from_warehouse_id',
+                'products' => 'required|array|min:1',
+                'products.*.product_id' => 'required|exists:products,id',
+                'products.*.quantity' => 'required|integer|min:1',
+            ]);
+
+            // Kiểm tra kho nguồn và kho đích khác nhau
+            if ($validated['from_warehouse_id'] == $validated['to_warehouse_id']) {
+                return response()->json(['error' => 'Source and destination warehouses must be different.'], 400);
+            }
+
+            // Kiểm tra tồn kho trước khi chuyển
+            foreach ($validated['products'] as $index => $product) {
+                $inventory = Inventory::where('product_id', $product['product_id'])
+                    ->where('warehouse_id', $validated['from_warehouse_id'])
+                    ->first();
+
+                if (!$inventory || $inventory->quantity < $product['quantity']) {
+                    return response()->json([
+                        'error' => 'Insufficient quantity in source warehouse.',
+                        'product_id' => $product['product_id'],
+                        'available_quantity' => $inventory ? $inventory->quantity : 0,
+                    ], 400);
+                }
+            }
+
+            // Tạo phiếu chuyển kho
+            $transfer = Transfer::create([
+                'from_warehouse_id' => $validated['from_warehouse_id'],
+                'to_warehouse_id' => $validated['to_warehouse_id'],
+                'type' => 'internal',
+                'reason' => 'Internal transfer',
+            ]);
+
+            // Tạo chi tiết chuyển kho và cập nhật tồn kho
+            foreach ($validated['products'] as $product) {
+                TransferDetail::create([
+                    'transfer_id' => $transfer->id,
+                    'product_id' => $product['product_id'],
+                    'quantity' => $product['quantity'],
+                ]);
+
+                // Giảm số lượng trong kho nguồn
+                $sourceInventory = Inventory::where('product_id', $product['product_id'])
+                    ->where('warehouse_id', $validated['from_warehouse_id'])
+                    ->first();
+                $sourceInventory->decrement('quantity', $product['quantity']);
+
+                // Xóa bản ghi kho nguồn nếu quantity = 0
+                if ($sourceInventory->quantity == 0) {
+                    $sourceInventory->delete();
+                }
+
+                // Tăng số lượng trong kho đích
+                $destInventory = Inventory::firstOrCreate(
+                    [
+                        'product_id' => $product['product_id'],
+                        'warehouse_id' => $validated['to_warehouse_id'],
+                    ],
+                    ['quantity' => 0]
+                );
+                $destInventory->increment('quantity', $product['quantity']);
+            }
+
+            return response()->json([
+                'message' => 'Internal transfer successful',
+                'transfer_id' => $transfer->id
+            ], 201);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json(['error' => $e->errors()], 400);
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'Failed to transfer inventory.',
                 'message' => $e->getMessage(),
             ], 500);
         }
