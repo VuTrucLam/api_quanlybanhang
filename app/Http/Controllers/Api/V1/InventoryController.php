@@ -13,6 +13,8 @@ use App\Models\InventoryCheck;
 use App\Models\InventoryCheckDetail;
 use App\Models\Transfer;
 use App\Models\TransferDetail;
+use App\Models\Product;
+use App\Models\Warehouse;
 
 class InventoryController extends Controller
 {
@@ -582,6 +584,139 @@ class InventoryController extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 'error' => 'Failed to fetch discards.',
+                'message' => $e->getMessage(),
+            ], 500);
+        }
+    }
+    public function getInitialInventory(Request $request)
+    {
+        try {
+            // Xác thực dữ liệu đầu vào
+            $validated = $request->validate([
+                'warehouse_id' => 'nullable|exists:warehouses,id',
+                'date' => 'required|date_format:Y-m-d',
+            ]);
+
+            $warehouseId = $validated['warehouse_id'] ?? null; // Sử dụng null nếu không có warehouse_id
+            $startDate = $validated['date'] . ' 00:00:00';
+            $endDate = now()->toDateTimeString(); // Thời điểm hiện tại: 2025-05-16 10:12:00
+
+            // Lấy tất cả sản phẩm và tồn kho hiện tại
+            $products = Product::query()
+                ->select('products.id as product_id', 'products.title as name')
+                ->get()
+                ->keyBy('product_id');
+
+            $initialInventory = [];
+            foreach ($products as $productId => $product) {
+                // Lấy danh sách warehouse_id áp dụng
+                $warehouses = $warehouseId
+                    ? [$warehouseId]
+                    : Warehouse::pluck('id')->toArray();
+
+                foreach ($warehouses as $whId) {
+                    // Lấy tồn kho hiện tại
+                    $currentInventory = Inventory::where('product_id', $productId)
+                        ->where('warehouse_id', $whId)
+                        ->first();
+
+                    $currentQuantity = $currentInventory ? $currentInventory->quantity : 0;
+
+                    // Tính toán giao dịch nhập từ date đến hiện tại
+                    $imports = ImportDetail::join('imports', 'import_details.import_id', '=', 'imports.id')
+                        ->where('imports.warehouse_id', $whId)
+                        ->where('import_details.product_id', $productId)
+                        ->whereBetween('imports.created_at', [$startDate, $endDate])
+                        ->sum('import_details.quantity');
+
+                    // Tính toán giao dịch xuất từ date đến hiện tại
+                    $exports = ExportDetail::join('exports', 'export_details.export_id', '=', 'exports.id')
+                        ->where('exports.warehouse_id', $whId)
+                        ->where('export_details.product_id', $productId)
+                        ->whereBetween('exports.created_at', [$startDate, $endDate])
+                        ->sum('export_details.quantity');
+
+                    // Tính toán giao dịch chuyển kho (internal, discard, repair)
+                    $transfersOut = TransferDetail::join('transfers', 'transfer_details.transfer_id', '=', 'transfers.id')
+                        ->where('transfers.from_warehouse_id', $whId)
+                        ->where('transfer_details.product_id', $productId)
+                        ->whereBetween('transfers.created_at', [$startDate, $endDate])
+                        ->sum('transfer_details.quantity');
+
+                    $transfersIn = TransferDetail::join('transfers', 'transfer_details.transfer_id', '=', 'transfers.id')
+                        ->where('transfers.to_warehouse_id', $whId)
+                        ->where('transfers.type', 'internal')
+                        ->where('transfer_details.product_id', $productId)
+                        ->whereBetween('transfers.created_at', [$startDate, $endDate])
+                        ->sum('transfer_details.quantity');
+
+                    // Tính toán kiểm kho (lấy giá trị kiểm cuối cùng trước date)
+                    $lastCheck = InventoryCheckDetail::join('inventory_checks', 'inventory_check_details.inventory_check_id', '=', 'inventory_checks.id')
+                        ->where('inventory_checks.warehouse_id', $whId)
+                        ->where('inventory_check_details.product_id', $productId)
+                        ->where('inventory_checks.created_at', '<', $startDate)
+                        ->orderBy('inventory_checks.created_at', 'desc')
+                        ->first();
+
+                    // Tính tồn kho đầu kỳ
+                    $initialQuantity = $currentQuantity;
+                    $initialQuantity -= $imports; // Trừ nhập kho từ date đến nay
+                    $initialQuantity += $exports; // Cộng xuất kho từ date đến nay
+                    $initialQuantity += $transfersOut; // Cộng số lượng chuyển đi
+                    $initialQuantity -= $transfersIn; // Trừ số lượng chuyển đến
+
+                    if ($lastCheck) {
+                        // Nếu có kiểm kho trước date, dùng giá trị kiểm kho gần nhất
+                        $checkImports = ImportDetail::join('imports', 'import_details.import_id', '=', 'imports.id')
+                            ->where('imports.warehouse_id', $whId)
+                            ->where('import_details.product_id', $productId)
+                            ->whereBetween('imports.created_at', [$lastCheck->created_at, $startDate])
+                            ->sum('import_details.quantity');
+
+                        $checkExports = ExportDetail::join('exports', 'export_details.export_id', '=', 'exports.id')
+                            ->where('exports.warehouse_id', $whId)
+                            ->where('export_details.product_id', $productId)
+                            ->whereBetween('exports.created_at', [$lastCheck->created_at, $startDate])
+                            ->sum('export_details.quantity');
+
+                        $checkTransfersOut = TransferDetail::join('transfers', 'transfer_details.transfer_id', '=', 'transfers.id')
+                            ->where('transfers.from_warehouse_id', $whId)
+                            ->where('transfer_details.product_id', $productId)
+                            ->whereBetween('transfers.created_at', [$lastCheck->created_at, $startDate])
+                            ->sum('transfer_details.quantity');
+
+                        $checkTransfersIn = TransferDetail::join('transfers', 'transfer_details.transfer_id', '=', 'transfers.id')
+                            ->where('transfers.to_warehouse_id', $whId)
+                            ->where('transfers.type', 'internal')
+                            ->where('transfer_details.product_id', $productId)
+                            ->whereBetween('transfers.created_at', [$lastCheck->created_at, $startDate])
+                            ->sum('transfer_details.quantity');
+
+                        $initialQuantity = $lastCheck->actual_quantity;
+                        $initialQuantity += $checkImports;
+                        $initialQuantity -= $checkExports;
+                        $initialQuantity -= $checkTransfersOut;
+                        $initialQuantity += $checkTransfersIn;
+                    }
+
+                    // Chỉ thêm vào kết quả nếu quantity > 0
+                    if ($initialQuantity > 0) {
+                        $initialInventory[] = [
+                            'product_id' => $productId,
+                            'name' => $product->name,
+                            'quantity' => $initialQuantity,
+                            'warehouse_id' => $whId,
+                        ];
+                    }
+                }
+            }
+
+            return response()->json($initialInventory, 200);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json(['error' => $e->errors()], 400);
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'Failed to fetch initial inventory.',
                 'message' => $e->getMessage(),
             ], 500);
         }
