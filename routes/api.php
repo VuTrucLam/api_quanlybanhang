@@ -78,5 +78,6 @@ Route::prefix('v1')->group(function () {
 
         // fund
         Route::get('/fund/revenue-types', [FundController::class, 'getRevenueTypes']);
+        Route::post('/fund/revenue-types', [FundController::class, 'storeRevenueType']);
     });
 });
