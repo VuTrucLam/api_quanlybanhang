@@ -80,5 +80,6 @@ Route::prefix('v1')->group(function () {
         Route::get('/fund/revenue-types', [FundController::class, 'getRevenueTypes']);
         Route::post('/fund/revenue-types', [FundController::class, 'storeRevenueType']);
         Route::post('/fund/accounts', [FundController::class, 'storeAccount']);
+        Route::get('/fund/accounts', [FundController::class, 'getAccounts']);
     });
 });

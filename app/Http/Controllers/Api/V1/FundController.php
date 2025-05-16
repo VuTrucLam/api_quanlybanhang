@@ -80,4 +80,43 @@ class FundController extends Controller
             ], 500);
         }
     }
+    public function getAccounts(Request $request)
+    {
+        try {
+            // Lấy tham số phân trang
+            $page = $request->query('page', 1); // Mặc định: 1
+            $limit = $request->query('limit', 10); // Mặc định: 10
+
+            // Xác thực tham số
+            $validated = $request->validate([
+                'page' => 'integer|min:1',
+                'limit' => 'integer|min:1|max:100',
+            ]);
+
+            $page = $validated['page'] ?? $page;
+            $limit = $validated['limit'] ?? $limit;
+
+            // Lấy tổng số tài khoản
+            $total = Account::count();
+
+            // Lấy danh sách tài khoản với phân trang
+            $accounts = Account::select('id', 'name', 'balance', 'type', 'created_at')
+                ->orderBy('created_at', 'desc')
+                ->paginate($limit, ['*'], 'page', $page);
+
+            return response()->json([
+                'accounts' => $accounts->items(),
+                'total' => $total,
+                'page' => $page,
+                'limit' => $limit,
+            ], 200);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json(['error' => $e->errors()], 400);
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'Failed to fetch accounts.',
+                'message' => $e->getMessage(),
+            ], 500);
+        }
+    }
 }
