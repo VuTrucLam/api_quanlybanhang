@@ -85,5 +85,6 @@ Route::prefix('v1')->group(function () {
         Route::get('/fund/receipts', [FundController::class, 'getReceipts']);
         Route::post('/fund/receipts', [FundController::class, 'storeReceipt']);
         Route::get('/fund/transactions/revenue', [FundController::class, 'getRevenueTransactions']);
+        Route::get('/fund/transactions', [FundController::class, 'getTransactions']);
     });
 });

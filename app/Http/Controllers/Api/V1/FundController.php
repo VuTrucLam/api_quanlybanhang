@@ -315,4 +315,56 @@ class FundController extends Controller
             ], 500);
         }
     }
+    public function getTransactions(Request $request)
+    {
+        try {
+            // Lấy tham số từ query
+            $accountId = $request->query('account_id');
+            $startDate = $request->query('start_date');
+            $endDate = $request->query('end_date');
+
+            // Xây dựng truy vấn
+            $query = Receipt::select('id', 'account_id', 'type', 'amount', 'description', 'created_at');
+
+            // Lọc theo account_id nếu có
+            if ($accountId) {
+                $request->validate([
+                    'account_id' => 'integer|exists:accounts,id',
+                ]);
+                $query->where('account_id', $accountId);
+            }
+
+            // Lọc theo khoảng thời gian nếu có
+            if ($startDate) {
+                $request->validate([
+                    'start_date' => 'date_format:Y-m-d',
+                ]);
+                $query->where('created_at', '>=', $startDate . ' 00:00:00');
+            }
+
+            if ($endDate) {
+                $request->validate([
+                    'end_date' => 'date_format:Y-m-d',
+                ]);
+                $query->where('created_at', '<=', $endDate . ' 23:59:59');
+            }
+
+            // Kiểm tra start_date <= end_date
+            if ($startDate && $endDate && strtotime($startDate) > strtotime($endDate)) {
+                return response()->json(['error' => 'Start date must be before end date.'], 400);
+            }
+
+            // Lấy danh sách giao dịch
+            $transactions = $query->orderBy('created_at', 'desc')->get();
+
+            return response()->json($transactions, 200);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json(['error' => $e->errors()], 400);
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'Failed to fetch transactions.',
+                'message' => $e->getMessage(),
+            ], 500);
+        }
+    }
 }
