@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\V1;
 use App\Http\Controllers\Controller;
 use App\Models\RevenueType;
 use App\Models\Account;
+use App\Models\Receipt;
 use Illuminate\Http\Request;
 
 
@@ -148,6 +149,58 @@ class FundController extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 'error' => 'Failed to fetch initial balance.',
+                'message' => $e->getMessage(),
+            ], 500);
+        }
+    }
+    public function getReceipts(Request $request)
+    {
+        try {
+            // Lấy tham số từ query
+            $type = $request->query('type');
+            $startDate = $request->query('start_date');
+            $endDate = $request->query('end_date');
+
+            // Xây dựng truy vấn
+            $query = Receipt::select('id', 'account_id', 'type', 'amount', 'category_id', 'created_at');
+
+            // Lọc theo type nếu có
+            if ($type) {
+                $request->validate([
+                    'type' => 'string|in:receipt,payment',
+                ]);
+                $query->where('type', $type);
+            }
+
+            // Lọc theo khoảng thời gian nếu có
+            if ($startDate) {
+                $request->validate([
+                    'start_date' => 'date_format:Y-m-d',
+                ]);
+                $query->where('created_at', '>=', $startDate . ' 00:00:00');
+            }
+
+            if ($endDate) {
+                $request->validate([
+                    'end_date' => 'date_format:Y-m-d',
+                ]);
+                $query->where('created_at', '<=', $endDate . ' 23:59:59');
+            }
+
+            // Kiểm tra start_date <= end_date
+            if ($startDate && $endDate && strtotime($startDate) > strtotime($endDate)) {
+                return response()->json(['error' => 'Start date must be before end date.'], 400);
+            }
+
+            // Lấy danh sách phiếu thu chi
+            $receipts = $query->orderBy('created_at', 'desc')->get();
+
+            return response()->json($receipts, 200);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json(['error' => $e->errors()], 400);
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'Failed to fetch receipts.',
                 'message' => $e->getMessage(),
             ], 500);
         }
