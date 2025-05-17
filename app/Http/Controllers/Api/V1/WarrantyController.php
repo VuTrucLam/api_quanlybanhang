@@ -398,9 +398,9 @@ class WarrantyController extends Controller
             // Tìm yêu cầu bảo hành
             $warrantyRequest = WarrantyRequest::findOrFail($validated['request_id']);
 
-            // Kiểm tra xem yêu cầu đã được gửi chưa
-            if (!$warrantyRequest->sent_date) {
-                return response()->json(['error' => 'This warranty request has not been sent yet.'], 400);
+            // Kiểm tra xem yêu cầu đã được nhận chưa
+            if (!$warrantyRequest->received_date) {
+                return response()->json(['error' => 'This warranty request has not been received yet.'], 400);
             }
 
             // Kiểm tra xem yêu cầu đã được trả chưa
