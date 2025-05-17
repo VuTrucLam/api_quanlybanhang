@@ -12,4 +12,8 @@ class WarrantyRequest extends Model
     {
         return $this->belongsTo(Product::class);
     }
+    public function user()
+    {
+        return $this->belongsTo(User::class, 'customer_id'); // Liên kết customer_id với bảng users
+    }
 }

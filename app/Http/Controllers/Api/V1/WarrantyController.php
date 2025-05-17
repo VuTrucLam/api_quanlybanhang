@@ -121,6 +121,8 @@ class WarrantyController extends Controller
             $query = WarrantyRequest::select('id', 'product_id', 'customer_id', 'received_date', 'issue_description')
                 ->with(['product' => function ($query) {
                     $query->select('id', 'title');
+                }, 'user' => function ($query) {
+                    $query->select('id', 'name', 'email');
                 }])
                 ->whereNotNull('received_date');
 
@@ -154,7 +156,7 @@ class WarrantyController extends Controller
                     'product_id' => $item->product_id,
                     'title' => $item->product->title,
                     'customer_id' => $item->customer_id,
-                    'received_date' => $item->received_date->toIso8601String(),
+                    'received_date' => \Carbon\Carbon::parse($item->received_date)->toIso8601String(),
                     'issue_description' => $item->issue_description,
                 ];
             });
@@ -165,6 +167,48 @@ class WarrantyController extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 'error' => 'Failed to fetch warranty received requests.',
+                'message' => $e->getMessage(),
+            ], 500);
+        }
+    }
+    public function receiveWarranty(Request $request)
+    {
+        try {
+            // Validate tham số
+            $validated = $request->validate([
+                'product_id' => 'required|integer|exists:products,id',
+                'customer_id' => 'required|integer|exists:users,id', // Sử dụng users thay customers
+                'warehouse_id' => 'required|integer|exists:warehouses,id',
+                'issue_description' => 'required|string',
+                'received_date' => 'nullable|date_format:Y-m-d H:i:s',
+            ]);
+
+            // Tạo yêu cầu bảo hành
+            $warrantyRequest = WarrantyRequest::create([
+                'product_id' => $validated['product_id'],
+                'customer_id' => $validated['customer_id'],
+                'issue_description' => $validated['issue_description'],
+                'received_date' => $validated['received_date'] ?? now(),
+            ]);
+
+            // Cập nhật hoặc tạo tồn kho bảo hành
+            $inventory = WarrantyInventory::firstOrNew([
+                'product_id' => $validated['product_id'],
+                'warehouse_id' => $validated['warehouse_id'],
+            ]);
+            $inventory->quantity = ($inventory->quantity ?? 0) + 1;
+            $inventory->warranty_status = 'pending';
+            $inventory->save();
+
+            return response()->json([
+                'message' => 'Warranty request received successfully',
+                'request_id' => $warrantyRequest->id,
+            ], 201);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json(['error' => $e->errors()], 400);
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'Failed to receive warranty request.',
                 'message' => $e->getMessage(),
             ], 500);
         }

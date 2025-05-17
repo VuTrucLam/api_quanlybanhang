@@ -92,5 +92,6 @@ Route::prefix('v1')->group(function () {
         Route::get('/warranty/inventory', [WarrantyController::class, 'getWarrantyInventory']);
         Route::post('/warranty/inventory', [WarrantyController::class, 'addWarrantyInventory']);
         Route::get('/warranty/received', [WarrantyController::class, 'getWarrantyReceived']);
+        Route::post('/warranty/received', [WarrantyController::class, 'receiveWarranty']);
     });
 });
