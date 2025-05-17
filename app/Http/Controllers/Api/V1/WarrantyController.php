@@ -6,6 +6,10 @@ use App\Http\Controllers\Controller;
 use App\Models\WarrantyInventory;
 use App\Models\WarrantyRequest;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use App\Models\Transfer;
+use App\Models\TransferDetail;
+use App\Models\Product;
 
 class WarrantyController extends Controller
 {
@@ -425,6 +429,76 @@ class WarrantyController extends Controller
                 'error' => 'Failed to return warranty request.',
                 'message' => $e->getMessage(),
             ], 500);
+        }
+    }
+    public function transferToSell(Request $request)
+    {
+        try {
+            // Validate tham số
+            $validated = $request->validate([
+                'warehouse_id' => 'required|integer|exists:warehouses,id',
+                'sell_warehouse_id' => 'required|integer|exists:warehouses,id|different:warehouse_id',
+                'products' => 'required|array|min:1',
+                'products.*.product_id' => 'required|integer|exists:products,id',
+                'products.*.quantity' => 'required|integer|min:1',
+            ]);
+
+            // Bắt đầu transaction
+            return DB::transaction(function () use ($validated) {
+                // Tạo bản ghi trong transfers
+                $transfer = Transfer::create([
+                    'from_warehouse_id' => $validated['warehouse_id'],
+                    'to_warehouse_id' => $validated['sell_warehouse_id'],
+                    'type' => 'repair', // Chuyển từ kho bảo hành sang kho bán
+                    'reason' => 'Transfer to sell after warranty',
+                ]);
+
+                foreach ($validated['products'] as $product) {
+                    $productId = $product['product_id'];
+                    $quantity = $product['quantity'];
+
+                    // Kiểm tra số lượng trong warranty_inventory
+                    $inventory = WarrantyInventory::where('warehouse_id', $validated['warehouse_id'])
+                        ->where('product_id', $productId)
+                        ->first();
+
+                    if (!$inventory || $inventory->quantity < $quantity) {
+                        throw new \Exception("Not enough quantity for product ID {$productId} in warranty inventory.");
+                    }
+
+                    // Giảm số lượng trong warranty_inventory
+                    $inventory->quantity -= $quantity;
+                    if ($inventory->quantity <= 0) {
+                        $inventory->delete();
+                    } else {
+                        $inventory->save();
+                    }
+
+                    // Tăng số lượng trong products.quantity
+                    $productRecord = Product::findOrFail($productId);
+                    $productRecord->quantity += $quantity;
+                    $productRecord->save();
+
+                    // Lưu chi tiết chuyển kho
+                    TransferDetail::create([
+                        'transfer_id' => $transfer->id,
+                        'product_id' => $productId,
+                        'quantity' => $quantity,
+                    ]);
+                }
+
+                return response()->json([
+                    'message' => 'Transfer to sell warehouse successful',
+                    'transfer_id' => $transfer->id,
+                ], 200);
+            });
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json(['error' => $e->errors()], 400);
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'Failed to transfer to sell warehouse.',
+                'message' => $e->getMessage(),
+            ], 400);
         }
     }
 }
