@@ -385,4 +385,46 @@ class WarrantyController extends Controller
             ], 500);
         }
     }
+    public function returnWarranty(Request $request)
+    {
+        try {
+            // Validate tham số
+            $validated = $request->validate([
+                'request_id' => 'required|integer|exists:warranty_requests,id',
+                'resolution' => 'required|string',
+                'returned_date' => 'nullable|date_format:Y-m-d H:i:s',
+            ]);
+
+            // Tìm yêu cầu bảo hành
+            $warrantyRequest = WarrantyRequest::findOrFail($validated['request_id']);
+
+            // Kiểm tra xem yêu cầu đã được gửi chưa
+            if (!$warrantyRequest->sent_date) {
+                return response()->json(['error' => 'This warranty request has not been sent yet.'], 400);
+            }
+
+            // Kiểm tra xem yêu cầu đã được trả chưa
+            if ($warrantyRequest->returned_date) {
+                return response()->json(['error' => 'This warranty request has already been returned.'], 400);
+            }
+
+            // Cập nhật yêu cầu bảo hành
+            $warrantyRequest->update([
+                'returned_date' => $validated['returned_date'] ?? now(),
+                'resolution' => $validated['resolution'],
+            ]);
+
+            return response()->json([
+                'message' => 'Warranty request returned successfully',
+                'request_id' => $warrantyRequest->id,
+            ], 200);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json(['error' => $e->errors()], 400);
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'Failed to return warranty request.',
+                'message' => $e->getMessage(),
+            ], 500);
+        }
+    }
 }
