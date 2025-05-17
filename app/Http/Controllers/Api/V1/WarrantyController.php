@@ -71,4 +71,42 @@ class WarrantyController extends Controller
             ], 500);
         }
     }
+    public function addWarrantyInventory(Request $request)
+    {
+        try {
+            // Validate tham số
+            $validated = $request->validate([
+                'warehouse_id' => 'required|integer|exists:warehouses,id',
+                'products' => 'required|array',
+                'products.*.product_id' => 'required|integer|exists:products,id',
+                'products.*.quantity' => 'required|integer|min:1',
+                'products.*.warranty_status' => 'required|string|in:pending,processed',
+            ]);
+
+            $warehouseId = $validated['warehouse_id'];
+            $products = $validated['products'];
+
+            // Xử lý từng sản phẩm
+            foreach ($products as $product) {
+                $inventory = WarrantyInventory::firstOrNew([
+                    'warehouse_id' => $warehouseId,
+                    'product_id' => $product['product_id'],
+                ]);
+                $inventory->quantity = ($inventory->quantity ?? 0) + $product['quantity'];
+                $inventory->warranty_status = $product['warranty_status'];
+                $inventory->save();
+            }
+
+            return response()->json([
+                'message' => 'Products added to warranty inventory successfully',
+            ], 201);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json(['error' => $e->errors()], 400);
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'Failed to add products to warranty inventory.',
+                'message' => $e->getMessage(),
+            ], 500);
+        }
+    }
 }
