@@ -9,6 +9,7 @@ use App\Http\Controllers\Api\V1\WarehouseController;
 use App\Http\Controllers\Api\V1\SupplierController;
 use App\Http\Controllers\Api\V1\InventoryController;
 use App\Http\Controllers\Api\V1\FundController;
+use App\Http\Controllers\Api\V1\WarrantyController;
 
 Route::prefix('v1')->group(function () {
     // Public API: Không yêu cầu xác thực
@@ -86,5 +87,8 @@ Route::prefix('v1')->group(function () {
         Route::post('/fund/receipts', [FundController::class, 'storeReceipt']);
         Route::get('/fund/transactions/revenue', [FundController::class, 'getRevenueTransactions']);
         Route::get('/fund/transactions', [FundController::class, 'getTransactions']);
+
+        //warranty
+        Route::get('/warranty/inventory', [WarrantyController::class, 'getWarrantyInventory']);
     });
 });
