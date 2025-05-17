@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
 use App\Models\WarrantyInventory;
+use App\Models\WarrantyRequest;
 use Illuminate\Http\Request;
 
 class WarrantyController extends Controller
@@ -105,6 +106,65 @@ class WarrantyController extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 'error' => 'Failed to add products to warranty inventory.',
+                'message' => $e->getMessage(),
+            ], 500);
+        }
+    }
+    public function getWarrantyReceived(Request $request)
+    {
+        try {
+            // Lấy tham số từ query
+            $startDate = $request->query('start_date');
+            $endDate = $request->query('end_date');
+
+            // Xây dựng truy vấn
+            $query = WarrantyRequest::select('id', 'product_id', 'customer_id', 'received_date', 'issue_description')
+                ->with(['product' => function ($query) {
+                    $query->select('id', 'title');
+                }])
+                ->whereNotNull('received_date');
+
+            // Lọc theo start_date và end_date
+            if ($startDate) {
+                $request->validate([
+                    'start_date' => 'date_format:Y-m-d',
+                ]);
+                $query->where('received_date', '>=', $startDate . ' 00:00:00');
+            }
+
+            if ($endDate) {
+                $request->validate([
+                    'end_date' => 'date_format:Y-m-d',
+                ]);
+                $query->where('received_date', '<=', $endDate . ' 23:59:59');
+            }
+
+            // Kiểm tra start_date <= end_date
+            if ($startDate && $endDate && strtotime($startDate) > strtotime($endDate)) {
+                return response()->json(['error' => 'Start date must be before end date.'], 400);
+            }
+
+            // Lấy danh sách yêu cầu
+            $requests = $query->orderBy('received_date', 'desc')->get();
+
+            // Định dạng phản hồi
+            $formattedRequests = $requests->map(function ($item) {
+                return [
+                    'request_id' => $item->id,
+                    'product_id' => $item->product_id,
+                    'title' => $item->product->title,
+                    'customer_id' => $item->customer_id,
+                    'received_date' => $item->received_date->toIso8601String(),
+                    'issue_description' => $item->issue_description,
+                ];
+            });
+
+            return response()->json($formattedRequests, 200);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json(['error' => $e->errors()], 400);
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'Failed to fetch warranty received requests.',
                 'message' => $e->getMessage(),
             ], 500);
         }
