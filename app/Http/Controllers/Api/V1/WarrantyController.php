@@ -567,4 +567,69 @@ class WarrantyController extends Controller
             ], 400);
         }
     }
+    public function transferToRepair(Request $request)
+    {
+        try {
+            // Validate tham số
+            $validated = $request->validate([
+                'warehouse_id' => 'required|integer|exists:warehouses,id',
+                'repair_warehouse_id' => 'required|integer|exists:warehouses,id|different:warehouse_id',
+                'products' => 'required|array|min:1',
+                'products.*.product_id' => 'required|integer|exists:products,id',
+                'products.*.quantity' => 'required|integer|min:1',
+            ]);
+
+            // Bắt đầu transaction
+            return DB::transaction(function () use ($validated) {
+                // Tạo bản ghi trong transfers
+                $transfer = Transfer::create([
+                    'from_warehouse_id' => $validated['warehouse_id'],
+                    'to_warehouse_id' => $validated['repair_warehouse_id'],
+                    'type' => 'internal', // Chuyển nội bộ sang kho sử dụng
+                    'reason' => 'Transfer to repair warehouse for internal use',
+                ]);
+
+                foreach ($validated['products'] as $product) {
+                    $productId = $product['product_id'];
+                    $quantity = $product['quantity'];
+
+                    // Kiểm tra số lượng trong warranty_inventory
+                    $inventory = WarrantyInventory::where('warehouse_id', $validated['warehouse_id'])
+                        ->where('product_id', $productId)
+                        ->first();
+
+                    if (!$inventory || $inventory->quantity < $quantity) {
+                        throw new \Exception("Not enough quantity for product ID {$productId} in warranty inventory.");
+                    }
+
+                    // Giảm số lượng trong warranty_inventory
+                    $inventory->quantity -= $quantity;
+                    if ($inventory->quantity <= 0) {
+                        $inventory->delete();
+                    } else {
+                        $inventory->save();
+                    }
+
+                    // Lưu chi tiết chuyển kho
+                    TransferDetail::create([
+                        'transfer_id' => $transfer->id,
+                        'product_id' => $productId,
+                        'quantity' => $quantity,
+                    ]);
+                }
+
+                return response()->json([
+                    'message' => 'Transfer to repair warehouse successful',
+                    'transfer_id' => $transfer->id,
+                ], 200);
+            });
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json(['error' => $e->errors()], 400);
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'Failed to transfer to repair warehouse.',
+                'message' => $e->getMessage(),
+            ], 400);
+        }
+    }
 }
