@@ -6,11 +6,12 @@ use Illuminate\Database\Eloquent\Model;
 
 class WarrantyRequest extends Model
 {
-    protected $fillable = ['product_id', 'customer_id', 'received_date', 'supplier_id', 'sent_date', 'issue_description'];
+    protected $fillable = ['product_id', 'customer_id', 'received_date', 'supplier_id', 'sent_date', 'returned_date', 'resolution', 'issue_description'];
 
     protected $casts = [
         'received_date' => 'datetime',
         'sent_date' => 'datetime',
+        'returned_date' => 'datetime',
     ];
 
     public function product()

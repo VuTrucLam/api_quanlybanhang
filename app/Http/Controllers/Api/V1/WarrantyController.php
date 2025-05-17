@@ -326,4 +326,63 @@ class WarrantyController extends Controller
             ], 500);
         }
     }
+    public function getWarrantyReturned(Request $request)
+    {
+        try {
+            // Lấy tham số từ query
+            $startDate = $request->query('start_date');
+            $endDate = $request->query('end_date');
+
+            // Xây dựng truy vấn
+            $query = WarrantyRequest::select('id', 'product_id', 'customer_id', 'returned_date', 'resolution')
+                ->with(['product' => function ($query) {
+                    $query->select('id', 'title');
+                }])
+                ->whereNotNull('returned_date');
+
+            // Lọc theo start_date và end_date
+            if ($startDate) {
+                $request->validate([
+                    'start_date' => 'date_format:Y-m-d',
+                ]);
+                $query->where('returned_date', '>=', $startDate . ' 00:00:00');
+            }
+
+            if ($endDate) {
+                $request->validate([
+                    'end_date' => 'date_format:Y-m-d',
+                ]);
+                $query->where('returned_date', '<=', $endDate . ' 23:59:59');
+            }
+
+            // Kiểm tra start_date <= end_date
+            if ($startDate && $endDate && strtotime($startDate) > strtotime($endDate)) {
+                return response()->json(['error' => 'Start date must be before end date.'], 400);
+            }
+
+            // Lấy danh sách yêu cầu
+            $requests = $query->orderBy('returned_date', 'desc')->get();
+
+            // Định dạng phản hồi
+            $formattedRequests = $requests->map(function ($item) {
+                return [
+                    'request_id' => $item->id,
+                    'product_id' => $item->product_id,
+                    'title' => $item->product->title,
+                    'customer_id' => $item->customer_id,
+                    'returned_date' => $item->returned_date->toIso8601String(),
+                    'resolution' => $item->resolution,
+                ];
+            });
+
+            return response()->json($formattedRequests, 200);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json(['error' => $e->errors()], 400);
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'Failed to fetch warranty returned requests.',
+                'message' => $e->getMessage(),
+            ], 500);
+        }
+    }
 }
