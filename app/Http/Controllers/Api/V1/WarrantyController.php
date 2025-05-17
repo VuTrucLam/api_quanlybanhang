@@ -272,4 +272,58 @@ class WarrantyController extends Controller
             ], 500);
         }
     }
+    public function sendWarranty(Request $request)
+    {
+        try {
+            // Validate tham số
+            $validated = $request->validate([
+                'request_id' => 'required|integer|exists:warranty_requests,id',
+                'supplier_id' => 'required|integer|exists:suppliers,id',
+                'sent_date' => 'nullable|date_format:Y-m-d H:i:s',
+            ]);
+
+            // Tìm yêu cầu bảo hành
+            $warrantyRequest = WarrantyRequest::findOrFail($validated['request_id']);
+
+            // Kiểm tra xem yêu cầu đã được gửi chưa
+            if ($warrantyRequest->sent_date) {
+                return response()->json(['error' => 'This warranty request has already been sent.'], 400);
+            }
+
+            // Tìm bản ghi trong warranty_inventory
+            $inventory = WarrantyInventory::where('product_id', $warrantyRequest->product_id)
+                ->where('warranty_status', 'pending')
+                ->first();
+
+            if (!$inventory || $inventory->quantity <= 0) {
+                return response()->json(['error' => 'No available items in warranty inventory to send.'], 400);
+            }
+
+            // Cập nhật yêu cầu bảo hành
+            $warrantyRequest->update([
+                'supplier_id' => $validated['supplier_id'],
+                'sent_date' => $validated['sent_date'] ?? now(),
+            ]);
+
+            // Giảm số lượng trong warranty_inventory
+            $inventory->quantity -= 1;
+            if ($inventory->quantity <= 0) {
+                $inventory->delete(); // Xóa bản ghi nếu số lượng về 0
+            } else {
+                $inventory->save();
+            }
+
+            return response()->json([
+                'message' => 'Warranty request sent successfully',
+                'request_id' => $warrantyRequest->id,
+            ], 200);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json(['error' => $e->errors()], 400);
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'Failed to send warranty request.',
+                'message' => $e->getMessage(),
+            ], 500);
+        }
+    }
 }
