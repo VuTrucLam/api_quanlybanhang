@@ -320,4 +320,54 @@ class OrdersController extends Controller
             ], 500);
         }
     }
+    public function processPayment(Request $request, $id)
+    {
+        try {
+            // Tìm đơn hàng
+            $order = Order::find($id);
+            if (!$order) {
+                return response()->json([
+                    'error' => 'Order not found.',
+                ], 404);
+            }
+
+            // Validate tham số
+            $validated = $request->validate([
+                'payment_method' => 'required|string|in:cash,credit_card,transfer',
+                'amount' => 'required|numeric|min:0',
+            ]);
+
+            // Kiểm tra trạng thái hợp lệ (chỉ cho phép thanh toán khi pending hoặc confirmed)
+            if (!in_array($order->status, ['pending', 'confirmed', 'shipped'])) {
+                return response()->json([
+                    'error' => 'Order cannot be paid (already processed or cancelled).',
+                ], 400);
+            }
+
+            // So sánh số tiền
+            if ($validated['amount'] != $order->total_amount) {
+                return response()->json([
+                    'error' => 'Amount does not match the order total.',
+                ], 400);
+            }
+
+            // Cập nhật trạng thái thành paid
+            $order->status = 'paid';
+            $order->save();
+
+            return response()->json([
+                'message' => 'Payment processed successfully',
+            ], 200);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'error' => 'Validation failed.',
+                'message' => $e->errors(),
+            ], 400);
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'Failed to process payment.',
+                'message' => $e->getMessage(),
+            ], 500);
+        }
+    }
 }
