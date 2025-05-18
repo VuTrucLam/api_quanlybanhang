@@ -370,4 +370,84 @@ class OrdersController extends Controller
             ], 500);
         }
     }
+    public function getReport(Request $request)
+    {
+        try {
+            // Validate tham số
+            $validated = $request->validate([
+                'start_date' => 'required|date_format:Y-m-d',
+                'end_date' => 'required|date_format:Y-m-d|after_or_equal:start_date',
+                'format' => 'nullable|in:json,csv',
+            ]);
+
+            $startDate = $validated['start_date'];
+            $endDate = $validated['end_date'];
+            $format = $validated['format'] ?? 'json';
+
+            // Tính toán báo cáo
+            $orders = Order::whereBetween('created_at', [$startDate, $endDate])
+                          ->get();
+
+            $totalOrders = $orders->count();
+            $totalAmount = $orders->sum('total_amount');
+
+            $ordersByStatus = [
+                'pending' => $orders->where('status', 'pending')->count(),
+                'confirmed' => $orders->where('status', 'confirmed')->count(),
+                'shipped' => $orders->where('status', 'shipped')->count(),
+                'paid' => $orders->where('status', 'paid')->count(),
+                'delivered' => $orders->where('status', 'delivered')->count(),
+                'cancelled' => $orders->where('status', 'cancelled')->count(),
+            ];
+
+            $report = [
+                'total_orders' => $totalOrders,
+                'total_amount' => $totalAmount,
+                'orders_by_status' => $ordersByStatus,
+                'date_range' => [
+                    'start' => $startDate,
+                    'end' => $endDate
+                ]
+            ];
+
+            // Trả về kết quả theo định dạng
+            if ($format === 'json') {
+                return response()->json($report, 200);
+            } elseif ($format === 'csv') {
+                $headers = ['Total Orders', 'Total Amount', 'Pending', 'Confirmed', 'Shipped', 'Delivered', 'Cancelled', 'Start Date', 'End Date'];
+                $rows = [
+                    [
+                        $totalOrders,
+                        $totalAmount,
+                        $ordersByStatus['pending'],
+                        $ordersByStatus['confirmed'],
+                        $ordersByStatus['shipped'],
+                        $ordersByStatus['paid'],
+                        $ordersByStatus['delivered'],
+                        $ordersByStatus['cancelled'],
+                        $startDate,
+                        $endDate
+                    ]
+                ];
+                $csv = \League\Csv\Writer::createFromString('');
+                $csv->insertOne($headers);
+                $csv->insertOne($rows[0]);
+                return response((string) $csv)
+                    ->header('Content-Type', 'text/csv')
+                    ->header('Content-Disposition', 'attachment; filename="order_report.csv"');
+            }
+
+            return response()->json($report, 200);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'error' => 'Validation failed.',
+                'message' => $e->errors(),
+            ], 400);
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'Failed to generate report.',
+                'message' => $e->getMessage(),
+            ], 500);
+        }
+    }
 }

@@ -125,5 +125,6 @@ Route::prefix('v1')->group(function () {
         Route::post('/orders/{id}/confirm', [OrdersController::class, 'confirm']);
         Route::get('/orders/{id}/status', [OrdersController::class, 'getStatus']);
         Route::post('/orders/{id}/payment', [OrdersController::class, 'processPayment']);
+        Route::get('/orders/report', [OrdersController::class, 'getReport']);
     });
 });
