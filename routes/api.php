@@ -121,5 +121,6 @@ Route::prefix('v1')->group(function () {
         Route::post('/orders', [OrdersController::class, 'store']);
         Route::get('/orders', [OrdersController::class, 'index']);
         Route::put('/orders/{id}', [OrdersController::class, 'update']);
+        Route::delete('/orders/{id}', [OrdersController::class, 'destroy']);
     });
 });

@@ -194,4 +194,37 @@ class OrdersController extends Controller
             ], 500);
         }
     }
+    public function destroy($id)
+    {
+        try {
+            // Tìm đơn hàng
+            $order = Order::find($id);
+            if (!$order) {
+                return response()->json([
+                    'error' => 'Order not found.',
+                ], 404);
+            }
+
+            // Kiểm tra trạng thái đơn hàng
+            if ($order->status !== 'pending') {
+                return response()->json([
+                    'error' => 'Order has been processed and cannot be cancelled.',
+                ], 400);
+            }
+
+            // Cập nhật trạng thái thành cancelled
+            $order->status = 'cancelled';
+            $order->save();
+
+            // Trả về phản hồi
+            return response()->json([
+                'message' => 'Order cancelled successfully',
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'Failed to cancel order.',
+                'message' => $e->getMessage(),
+            ], 500);
+        }
+    }
 }
