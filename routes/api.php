@@ -105,5 +105,6 @@ Route::prefix('v1')->group(function () {
 
         //imports
         Route::post('/imports', [ImportsController::class, 'store']);
+        Route::get('/imports', [ImportsController::class, 'index']);
     });
 });

@@ -76,4 +76,73 @@ class ImportsController extends Controller
             ], 400);
         }
     }
+    public function index(Request $request)
+    {
+        try {
+            // Lấy và validate query params
+            $supplierId = $request->query('supplier_id');
+            $startDate = $request->query('start_date');
+            $endDate = $request->query('end_date');
+            $page = $request->query('page', 1);
+            $limit = $request->query('limit', 10);
+
+            // Validate page và limit
+            if (!is_numeric($page) || $page < 1) {
+                return response()->json(['error' => 'Page must be a positive integer.'], 400);
+            }
+            if (!is_numeric($limit) || $limit < 1 || $limit > 100) {
+                return response()->json(['error' => 'Limit must be between 1 and 100.'], 400);
+            }
+
+            // Xây dựng query cho imports
+            $query = Import::with('details.product');
+
+            // Lọc theo supplier_id
+            if ($supplierId && is_numeric($supplierId)) {
+                $query->where('supplier_id', $supplierId);
+            }
+
+            // Lọc theo khoảng thời gian (dựa trên created_at hoặc import_date)
+            if ($startDate && !$endDate) {
+                $query->whereDate('created_at', '>=', $startDate);
+            } elseif (!$startDate && $endDate) {
+                $query->whereDate('created_at', '<=', $endDate);
+            } elseif ($startDate && $endDate) {
+                $query->whereBetween('created_at', [$startDate, $endDate]);
+            }
+
+            // Phân trang
+            $imports = $query->paginate($limit, ['*'], 'page', $page);
+
+            // Định dạng phản hồi
+            $formattedImports = $imports->map(function ($import) {
+                $details = $import->details->map(function ($detail) {
+                    return [
+                        'product_id' => $detail->product_id,
+                        'quantity' => $detail->quantity,
+                        'import_price' => $detail->unit_price,
+                    ];
+                });
+
+                return [
+                    'import_id' => $import->id,
+                    'supplier_id' => $import->supplier_id,
+                    'total_amount' => $import->total_amount,
+                    'import_date' => $import->created_at->format('Y-m-d'),
+                    'products' => $details,
+                ];
+            });
+
+            return response()->json([
+                'imports' => $formattedImports,
+                'page' => $imports->currentPage(),
+                'total' => $imports->total(),
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'Failed to fetch imports.',
+                'message' => $e->getMessage(),
+            ], 500);
+        }
+    }
 }
