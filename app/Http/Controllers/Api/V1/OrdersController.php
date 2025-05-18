@@ -272,4 +272,52 @@ class OrdersController extends Controller
             ], 400);
         }
     }
+    public function getStatus($id)
+    {
+        try {
+            // Tìm đơn hàng
+            $order = Order::find($id);
+            if (!$order) {
+                return response()->json([
+                    'error' => 'Order not found.',
+                ], 404);
+            }
+
+            // Lấy trạng thái hiện tại
+            $currentStatus = $order->status;
+
+            // Xây dựng lịch sử trạng thái (giả định dựa trên updated_at)
+            $statusHistory = [
+                ['status' => 'pending', 'updated_at' => $order->created_at->toISOString()]
+            ];
+
+            // Lấy lịch sử từ các bản ghi cập nhật (giả định)
+            $updates = Order::where('id', $id)
+                           ->orderBy('updated_at')
+                           ->get();
+
+            $previousStatus = 'pending';
+            foreach ($updates as $update) {
+                if ($update->updated_at != $order->created_at && $update->status != $previousStatus) {
+                    $statusHistory[] = [
+                        'status' => $update->status,
+                        'updated_at' => $update->updated_at->toISOString()
+                    ];
+                    $previousStatus = $update->status;
+                }
+            }
+
+            // Trả về phản hồi
+            return response()->json([
+                'order_id' => $order->id,
+                'current_status' => $currentStatus,
+                'status_history' => $statusHistory
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'Failed to retrieve order status.',
+                'message' => $e->getMessage(),
+            ], 500);
+        }
+    }
 }

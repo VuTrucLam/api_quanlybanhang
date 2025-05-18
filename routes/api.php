@@ -123,5 +123,6 @@ Route::prefix('v1')->group(function () {
         Route::put('/orders/{id}', [OrdersController::class, 'update']);
         Route::delete('/orders/{id}', [OrdersController::class, 'destroy']);
         Route::post('/orders/{id}/confirm', [OrdersController::class, 'confirm']);
+        Route::get('/orders/{id}/status', [OrdersController::class, 'getStatus']);
     });
 });
