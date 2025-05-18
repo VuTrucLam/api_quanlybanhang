@@ -11,6 +11,7 @@ use App\Http\Controllers\Api\V1\InventoryController;
 use App\Http\Controllers\Api\V1\FundController;
 use App\Http\Controllers\Api\V1\WarrantyController;
 use App\Http\Controllers\Api\V1\ImportsController;
+use App\Http\Controllers\Api\V1\SalesController;
 
 Route::prefix('v1')->group(function () {
     // Public API: Không yêu cầu xác thực
@@ -106,5 +107,8 @@ Route::prefix('v1')->group(function () {
         //imports
         Route::post('/imports', [ImportsController::class, 'store']);
         Route::get('/imports', [ImportsController::class, 'index']);
+
+        //sales
+        Route::post('/sales', [SalesController::class, 'store']);
     });
 });

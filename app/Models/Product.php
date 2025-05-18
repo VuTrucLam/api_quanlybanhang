@@ -25,4 +25,8 @@ class Product extends Model
     {
         return $this->hasMany(Import::class);
     }
+    public function saleDetails()
+    {
+        return $this->hasMany(SaleDetail::class);
+    }
 }
