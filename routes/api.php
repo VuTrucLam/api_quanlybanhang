@@ -119,5 +119,6 @@ Route::prefix('v1')->group(function () {
 
         //orders
         Route::post('/orders', [OrdersController::class, 'store']);
+        Route::get('/orders', [OrdersController::class, 'index']);
     });
 });

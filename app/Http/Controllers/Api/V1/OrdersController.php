@@ -79,4 +79,63 @@ class OrdersController extends Controller
             ], 400);
         }
     }
+    public function index(Request $request)
+    {
+        try {
+            // Validate tham số
+            $validated = $request->validate([
+                'status' => 'nullable|string|in:pending,confirmed,shipped,delivered,cancelled',
+                'start_date' => 'nullable|date_format:Y-m-d',
+                'end_date' => 'nullable|date_format:Y-m-d|after_or_equal:start_date',
+                'page' => 'nullable|integer|min:1',
+                'limit' => 'nullable|integer|min:1|max:100',
+            ]);
+
+            // Lấy giá trị mặc định cho page và limit
+            $page = $validated['page'] ?? 1;
+            $limit = $validated['limit'] ?? 10;
+
+            // Tạo query
+            $query = Order::select('id as order_id', 'user_id', 'total_amount', 'status', 'shipping_carrier_id', 'created_at');
+
+            // Lọc theo trạng thái
+            if (isset($validated['status'])) {
+                $query->where('status', $validated['status']);
+            }
+
+            // Lọc theo khoảng thời gian
+            if (isset($validated['start_date'])) {
+                $query->whereDate('created_at', '>=', $validated['start_date']);
+            }
+            if (isset($validated['end_date'])) {
+                $query->whereDate('created_at', '<=', $validated['end_date']);
+            }
+
+            // Tính tổng số đơn hàng
+            $total = $query->count();
+
+            // Phân trang
+            $orders = $query->offset(($page - 1) * $limit)
+                           ->limit($limit)
+                           ->get();
+
+            // Trả về phản hồi
+            return response()->json([
+                'orders' => $orders,
+                'total' => $total,
+                'page' => $page,
+                'limit' => $limit,
+            ], 200);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'error' => 'Validation failed.',
+                'message' => $e->errors(),
+            ], 400);
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'Failed to retrieve orders.',
+                'message' => $e->getMessage(),
+            ], 500);
+        }
+    }
 }
