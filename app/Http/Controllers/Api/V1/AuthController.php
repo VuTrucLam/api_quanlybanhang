@@ -486,4 +486,28 @@ class AuthController extends Controller
             ], 500);
         }
     }
+    public function index(Request $request)
+    {
+        try {
+            // Lấy danh sách tất cả người dùng
+            $users = User::select('id', 'name', 'email', 'created_at')->get();
+
+            // Định dạng phản hồi thành list đơn giản
+            $userList = $users->map(function ($user) {
+                return [
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'email' => $user->email,
+                    'created_at' => $user->created_at->toIso8601String(),
+                ];
+            })->all();
+
+            return response()->json($userList, 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'Failed to fetch users.',
+                'message' => $e->getMessage(),
+            ], 500);
+        }
+    }
 }

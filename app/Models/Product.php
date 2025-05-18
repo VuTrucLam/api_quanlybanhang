@@ -21,4 +21,8 @@ class Product extends Model
     {
         return $this->belongsTo(Category::class, 'cat_id');
     }
+    public function imports()
+    {
+        return $this->hasMany(Import::class);
+    }
 }

@@ -10,6 +10,7 @@ use App\Http\Controllers\Api\V1\SupplierController;
 use App\Http\Controllers\Api\V1\InventoryController;
 use App\Http\Controllers\Api\V1\FundController;
 use App\Http\Controllers\Api\V1\WarrantyController;
+use App\Http\Controllers\Api\V1\ImportsController;
 
 Route::prefix('v1')->group(function () {
     // Public API: Không yêu cầu xác thực
@@ -42,6 +43,7 @@ Route::prefix('v1')->group(function () {
         Route::post('/accept-friend', [AuthController::class, 'acceptFriend']);
         Route::post('/reject-friend', [AuthController::class, 'rejectFriend']);
         Route::post('/get-user-profiles', [AuthController::class, 'getUserProfiles']);
+        Route::get('/users', [AuthController::class, 'index']);
 
 
         //Product
@@ -100,5 +102,8 @@ Route::prefix('v1')->group(function () {
         Route::post('/warranty/transfer/sell', [WarrantyController::class, 'transferToSell']);
         Route::post('/warranty/transfer/discard', [WarrantyController::class, 'transferToDiscard']);
         Route::post('/warranty/transfer/repair', [WarrantyController::class, 'transferToRepair']);
+
+        //imports
+        Route::post('/imports', [ImportsController::class, 'store']);
     });
 });
