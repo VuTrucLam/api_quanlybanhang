@@ -227,4 +227,49 @@ class OrdersController extends Controller
             ], 500);
         }
     }
+    public function confirm($id)
+    {
+        try {
+            // Tìm đơn hàng
+            $order = Order::with('details')->find($id);
+            if (!$order) {
+                return response()->json([
+                    'error' => 'Order not found.',
+                ], 404);
+            }
+
+            // Kiểm tra trạng thái
+            if (!in_array($order->status, ['pending'])) {
+                return response()->json([
+                    'error' => 'Order has already been confirmed or cancelled.',
+                ], 400);
+            }
+
+            // Bắt đầu transaction để đảm bảo tính toàn vẹn
+            return DB::transaction(function () use ($order) {
+                // Cập nhật trạng thái đơn hàng
+                $order->status = 'confirmed';
+                $order->save();
+
+                // Giảm tồn kho sản phẩm
+                foreach ($order->details as $detail) {
+                    $product = Product::findOrFail($detail->product_id);
+                    if ($product->quantity < $detail->quantity) {
+                        throw new \Exception("Insufficient stock for product ID {$detail->product_id}.");
+                    }
+                    $product->quantity -= $detail->quantity;
+                    $product->save();
+                }
+
+                return response()->json([
+                    'message' => 'Order confirmed successfully',
+                ], 200);
+            });
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'Failed to confirm order.',
+                'message' => $e->getMessage(),
+            ], 400);
+        }
+    }
 }
