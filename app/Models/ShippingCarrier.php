@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class ShippingCarrier extends Model
 {
-    protected $fillable = ['name', 'contact'];
+    protected $fillable = ['name', 'phone'];
 
     public function sales()
     {

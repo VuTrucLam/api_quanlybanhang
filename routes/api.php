@@ -12,6 +12,7 @@ use App\Http\Controllers\Api\V1\FundController;
 use App\Http\Controllers\Api\V1\WarrantyController;
 use App\Http\Controllers\Api\V1\ImportsController;
 use App\Http\Controllers\Api\V1\SalesController;
+use App\Http\Controllers\Api\V1\ShippingCarriersController;
 
 Route::prefix('v1')->group(function () {
     // Public API: Không yêu cầu xác thực
@@ -110,5 +111,8 @@ Route::prefix('v1')->group(function () {
 
         //sales
         Route::post('/sales', [SalesController::class, 'store']);
+
+        //shipping-carriers
+        Route::post('/shipping-carriers', [ShippingCarriersController::class, 'store']);
     });
 });
