@@ -114,5 +114,6 @@ Route::prefix('v1')->group(function () {
 
         //shipping-carriers
         Route::post('/shipping-carriers', [ShippingCarriersController::class, 'store']);
+        Route::get('/shipping-carriers', [ShippingCarriersController::class, 'index']);
     });
 });

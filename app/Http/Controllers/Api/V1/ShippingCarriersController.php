@@ -44,4 +44,19 @@ class ShippingCarriersController extends Controller
             ], 500);
         }
     }
+    public function index()
+    {
+        try {
+            // Lấy tất cả nhà vận chuyển
+            $shippingCarriers = ShippingCarrier::select('id', 'name', 'phone')->get();
+
+            // Trả về danh sách
+            return response()->json($shippingCarriers, 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'Failed to retrieve shipping carriers.',
+                'message' => $e->getMessage(),
+            ], 500);
+        }
+    }
 }
