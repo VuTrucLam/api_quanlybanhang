@@ -138,4 +138,60 @@ class OrdersController extends Controller
             ], 500);
         }
     }
+    public function update(Request $request, $id)
+    {
+        try {
+            // Tìm đơn hàng
+            $order = Order::find($id);
+            if (!$order) {
+                return response()->json([
+                    'error' => 'Order not found.',
+                ], 404);
+            }
+
+            // Validate tham số
+            $validated = $request->validate([
+                'status' => 'nullable|string|in:pending,confirmed,shipped,delivered,cancelled',
+                'shipping_address' => 'nullable|string|max:255',
+                'shipping_carrier_id' => 'nullable|integer|exists:shipping_carriers,id',
+            ]);
+
+            // Cập nhật các trường nếu có
+            if (isset($validated['status'])) {
+                $order->status = $validated['status'];
+            }
+            if (isset($validated['shipping_address'])) {
+                $order->shipping_address = $validated['shipping_address'];
+            }
+            if (isset($validated['shipping_carrier_id'])) {
+                $order->shipping_carrier_id = $validated['shipping_carrier_id'];
+            }
+
+            // Lưu thay đổi
+            $order->save();
+
+            // Trả về phản hồi
+            return response()->json([
+                'message' => 'Order updated successfully',
+                'order' => [
+                    'order_id' => $order->id,
+                    'user_id' => $order->user_id,
+                    'total_amount' => $order->total_amount,
+                    'status' => $order->status,
+                    'shipping_carrier_id' => $order->shipping_carrier_id,
+                    'created_at' => $order->created_at->toISOString(),
+                ],
+            ], 200);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'error' => 'Validation failed.',
+                'message' => $e->errors(),
+            ], 400);
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'Failed to update order.',
+                'message' => $e->getMessage(),
+            ], 500);
+        }
+    }
 }
