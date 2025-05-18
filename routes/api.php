@@ -13,6 +13,7 @@ use App\Http\Controllers\Api\V1\WarrantyController;
 use App\Http\Controllers\Api\V1\ImportsController;
 use App\Http\Controllers\Api\V1\SalesController;
 use App\Http\Controllers\Api\V1\ShippingCarriersController;
+use App\Http\Controllers\Api\V1\OrdersController;
 
 Route::prefix('v1')->group(function () {
     // Public API: Không yêu cầu xác thực
@@ -115,5 +116,8 @@ Route::prefix('v1')->group(function () {
         //shipping-carriers
         Route::post('/shipping-carriers', [ShippingCarriersController::class, 'store']);
         Route::get('/shipping-carriers', [ShippingCarriersController::class, 'index']);
+
+        //orders
+        Route::post('/orders', [OrdersController::class, 'store']);
     });
 });
