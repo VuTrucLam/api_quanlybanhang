@@ -14,6 +14,7 @@ use App\Http\Controllers\Api\V1\ImportsController;
 use App\Http\Controllers\Api\V1\SalesController;
 use App\Http\Controllers\Api\V1\ShippingCarriersController;
 use App\Http\Controllers\Api\V1\OrdersController;
+use App\Http\Controllers\Api\V1\AssetsController;
 
 Route::prefix('v1')->group(function () {
     // Public API: Không yêu cầu xác thực
@@ -127,5 +128,8 @@ Route::prefix('v1')->group(function () {
         Route::get('/orders/{id}/status', [OrdersController::class, 'getStatus']);
         Route::post('/orders/{id}/payment', [OrdersController::class, 'processPayment']);
         Route::get('/orders/report', [OrdersController::class, 'getReport']);
+
+        //assets
+        Route::get('/assets/sell', [AssetsController::class, 'sell']);
     });
 });
