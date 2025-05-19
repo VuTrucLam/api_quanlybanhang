@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Product;
 use App\Models\Transfer;
 use App\Models\TransferDetail;
+use App\Models\WarrantyInventory;
 use Illuminate\Http\Request;
 
 class AssetsController extends Controller
@@ -239,6 +240,80 @@ class AssetsController extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 'error' => 'Failed to retrieve transfers.',
+                'message' => $e->getMessage(),
+            ], 500);
+        }
+    }
+    public function warranty(Request $request)
+    {
+        try {
+            // Validate tham số
+            $validated = $request->validate([
+                'warehouse_id' => 'nullable|integer|exists:warehouses,id',
+                'warranty_status' => 'nullable|string|in:pending,processed',
+                'page' => 'nullable|integer|min:1',
+                'limit' => 'nullable|integer|min:1|max:100',
+            ]);
+
+            // Lấy giá trị mặc định cho page và limit
+            $page = $validated['page'] ?? 1;
+            $limit = $validated['limit'] ?? 10;
+
+            // Tạo query cho warranty_inventory
+            $query = WarrantyInventory::with('product');
+
+            // Lọc theo warehouse_id
+            if (isset($validated['warehouse_id'])) {
+                $query->where('warehouse_id', $validated['warehouse_id']);
+            }
+
+            // Lọc theo warranty_status
+            if (isset($validated['warranty_status'])) {
+                $query->where('warranty_status', $validated['warranty_status']);
+            }
+
+            // Tính tổng số bản ghi
+            $total = $query->count();
+
+            // Tính tổng số sản phẩm duy nhất (total_products)
+            $totalProducts = $query->distinct('product_id')->count('product_id');
+
+            // Tính tổng số lượng (total_quantity)
+            $totalQuantity = $query->sum('quantity');
+
+            // Phân trang
+            $warrantyItems = $query->offset(($page - 1) * $limit)
+                                  ->limit($limit)
+                                  ->get()
+                                  ->map(function ($item) {
+                                      return [
+                                          'id' => $item->id,
+                                          'product_id' => $item->product_id,
+                                          'title' => $item->product->title,
+                                          'warehouse_id' => $item->warehouse_id,
+                                          'quantity' => $item->quantity,
+                                          'warranty_status' => $item->warranty_status,
+                                          'created_at' => $item->created_at->toISOString(),
+                                      ];
+                                  });
+
+            // Trả về phản hồi
+            return response()->json([
+                'warranty_items' => $warrantyItems,
+                'total_products' => $totalProducts,
+                'total_quantity' => $totalQuantity,
+                'total' => $total,
+                'page' => $page,
+                'limit' => $limit,
+            ], 200);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'error' => 'Validation failed.',
+                'message' => $e->errors(),
+            ], 400);
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'Failed to retrieve warranty items.',
                 'message' => $e->getMessage(),
             ], 500);
         }
