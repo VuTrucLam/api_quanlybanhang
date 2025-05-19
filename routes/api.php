@@ -132,5 +132,6 @@ Route::prefix('v1')->group(function () {
         //assets
         Route::get('/assets/sell', [AssetsController::class, 'sell']);
         Route::get('/assets/repair', [AssetsController::class, 'repair']);
+        Route::get('/assets/discard', [AssetsController::class, 'discard']);
     });
 });
