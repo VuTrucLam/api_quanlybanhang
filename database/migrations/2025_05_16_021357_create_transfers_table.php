@@ -20,7 +20,7 @@ return new class extends Migration
             $table->foreign('from_warehouse_id')->references('id')->on('warehouses')->onDelete('cascade');
             $table->foreign('to_warehouse_id')->references('id')->on('warehouses')->onDelete('cascade');
             $table->timestamps();
-            });
+        });
     }
 
     /**

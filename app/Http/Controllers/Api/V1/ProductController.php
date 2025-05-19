@@ -202,4 +202,25 @@ class ProductController extends Controller
             ], 500);
         }
     }
+    public function search(Request $request)
+    {
+        $keyword = $request->query('keyword');
+        if (!$keyword) {
+            return response()->json(['message' => 'Keyword is required'], 400);
+        }
+
+        $products = Product::select('id', 'title','slug','quantity','summary', 'price', 'cat_id')
+            ->where('title', 'like', '%' . $keyword . '%')
+            ->orWhere('cat_id', 'like', '%' . $keyword . '%')
+            ->orWhere('slug', 'like', '%' . $keyword . '%')
+            ->get();
+
+        if ($products->isEmpty()) {
+            return response()->json(['message' => 'No products found'], 404);
+        }
+
+        return response()->json([
+            'products' => $products
+        ]);
+    }
 }
