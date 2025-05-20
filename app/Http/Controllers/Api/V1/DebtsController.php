@@ -245,7 +245,7 @@ class DebtsController extends Controller
             ], 500);
         }
     }
-    public function report(Request $request)
+    public function reportuser(Request $request)
     {
         try {
             // Validate tham số
@@ -664,6 +664,74 @@ class DebtsController extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 'error' => 'Failed to record payment.',
+                'message' => $e->getMessage(),
+            ], 500);
+        }
+    }
+    public function report(Request $request)
+    {
+        try {
+            // Validate tham số
+            $validated = $request->validate([
+                'start_date' => 'required|date_format:Y-m-d',
+                'end_date' => 'required|date_format:Y-m-d|after_or_equal:start_date',
+            ]);
+
+            // 1. Báo cáo công nợ khách hàng (user)
+            $userQuery = Debt::with('order');
+            $userQuery->whereBetween('created_at', [$validated['start_date'], $validated['end_date']]);
+            $userDebts = $userQuery->get();
+
+            $userTotalDebt = $userDebts->sum(function ($debt) {
+                return $debt->order->total_amount ?? 0;
+            });
+
+            $userTotalRemaining = $userDebts->sum('remaining_amount');
+
+            $userTotalPaid = DebtPayment::whereIn('debt_id', $userDebts->pluck('id'))
+                                      ->whereBetween('payment_date', [$validated['start_date'], $validated['end_date']])
+                                      ->sum('amount');
+
+            // 2. Báo cáo công nợ nhà cung cấp (supplier)
+            $supplierQuery = DebtSupplier::with('import');
+            $supplierQuery->whereBetween('created_at', [$validated['start_date'], $validated['end_date']]);
+            $supplierDebts = $supplierQuery->get();
+
+            $supplierTotalDebt = $supplierDebts->sum(function ($debt) {
+                return $debt->import->total_amount ?? 0;
+            });
+
+            $supplierTotalRemaining = $supplierDebts->sum('remaining_amount');
+
+            $supplierTotalPaid = SupplierDebtPayment::whereIn('debt_id', $supplierDebts->pluck('id'))
+                                                  ->whereBetween('payment_date', [$validated['start_date'], $validated['end_date']])
+                                                  ->sum('amount');
+
+            // Trả về phản hồi
+            return response()->json([
+                'user_debts' => [
+                    'total_debt' => round($userTotalDebt, 2),
+                    'total_remaining' => round($userTotalRemaining, 2),
+                    'total_paid' => round($userTotalPaid, 2),
+                ],
+                'supplier_debts' => [
+                    'total_debt' => round($supplierTotalDebt, 2),
+                    'total_remaining' => round($supplierTotalRemaining, 2),
+                    'total_paid' => round($supplierTotalPaid, 2),
+                ],
+                'date_range' => [
+                    'start' => $validated['start_date'],
+                    'end' => $validated['end_date'],
+                ],
+            ], 200);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'error' => 'Validation failed.',
+                'message' => $e->errors(),
+            ], 400);
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'Failed to generate report.',
                 'message' => $e->getMessage(),
             ], 500);
         }

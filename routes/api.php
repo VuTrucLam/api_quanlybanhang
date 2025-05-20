@@ -141,12 +141,13 @@ Route::prefix('v1')->group(function () {
         Route::get('/debts/user/list', [DebtsController::class, 'list']);
         Route::put('/debts/user/update/{id}', [DebtsController::class, 'update']);
         Route::post('/debts/user/payment', [DebtsController::class, 'paymentuser']);
-        Route::get('/debts/user/report', [DebtsController::class, 'report']);
+        Route::get('/debts/user/report', [DebtsController::class, 'reportuser']);
         Route::post('/debts/supplier/record', [DebtsController::class, 'recordSupplierDebt']);
         Route::get('/debts/supplier/list', [DebtsController::class, 'listSupplierDebts']);
         Route::put('/debts/supplier/update/{id}', [DebtsController::class, 'updateSupplierDebt']);
         Route::post('/debts/supplier/payment', [DebtsController::class, 'paymentSupplierDebt']);
         Route::get('/debts/supplier/report', [DebtsController::class, 'reportSupplierDebts']);
         Route::post('/debts/payment', [DebtsController::class, 'payment']);
+        Route::get('/debts/report', [DebtsController::class, 'report']);
     });
 });
