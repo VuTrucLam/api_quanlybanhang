@@ -191,7 +191,7 @@ class DebtsController extends Controller
             ], 500);
         }
     }
-    public function payment(Request $request)
+    public function paymentuser(Request $request)
     {
         try {
             // Validate tham số
@@ -585,6 +585,85 @@ class DebtsController extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 'error' => 'Failed to generate supplier report.',
+                'message' => $e->getMessage(),
+            ], 500);
+        }
+    }
+    public function payment(Request $request)
+    {
+        try {
+            // Validate tham số
+            $validated = $request->validate([
+                'debt_id' => 'required|integer',
+                'debt_type' => 'required|string|in:user,supplier',
+                'amount' => 'required|numeric|min:0',
+                'payment_date' => 'required|date_format:Y-m-d',
+            ]);
+
+            $debt = null;
+            $payment = null;
+
+            // Xử lý dựa trên debt_type
+            if ($validated['debt_type'] === 'user') {
+                // Tìm công nợ khách hàng
+                $debt = Debt::findOrFail($validated['debt_id']);
+
+                // Kiểm tra amount không lớn hơn remaining_amount
+                if ($validated['amount'] > $debt->remaining_amount) {
+                    return response()->json([
+                        'error' => 'Validation failed.',
+                        'message' => 'Payment amount cannot exceed the remaining debt amount.',
+                    ], 400);
+                }
+
+                // Tạo bản ghi thanh toán
+                $payment = DebtPayment::create([
+                    'debt_id' => $validated['debt_id'],
+                    'amount' => $validated['amount'],
+                    'payment_date' => $validated['payment_date'],
+                ]);
+            } else {
+                // Tìm công nợ nhà cung cấp
+                $debt = DebtSupplier::findOrFail($validated['debt_id']);
+
+                // Kiểm tra amount không lớn hơn remaining_amount
+                if ($validated['amount'] > $debt->remaining_amount) {
+                    return response()->json([
+                        'error' => 'Validation failed.',
+                        'message' => 'Payment amount cannot exceed the remaining debt amount.',
+                    ], 400);
+                }
+
+                // Tạo bản ghi thanh toán
+                $payment = SupplierDebtPayment::create([
+                    'debt_id' => $validated['debt_id'],
+                    'amount' => $validated['amount'],
+                    'payment_date' => $validated['payment_date'],
+                ]);
+            }
+
+            // Cập nhật remaining_amount
+            $debt->remaining_amount -= $validated['amount'];
+            $debt->save();
+
+            // Trả về phản hồi
+            return response()->json([
+                'message' => 'Debt payment recorded successfully',
+                'payment_id' => $payment->id,
+            ], 201);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'error' => 'Validation failed.',
+                'message' => $e->errors(),
+            ], 400);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json([
+                'error' => 'Debt not found.',
+                'message' => 'The specified debt does not exist.',
+            ], 404);
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'Failed to record payment.',
                 'message' => $e->getMessage(),
             ], 500);
         }
