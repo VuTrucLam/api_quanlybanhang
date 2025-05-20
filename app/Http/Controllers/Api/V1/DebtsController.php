@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Models\Debt;
 use App\Models\Order;
 use App\Models\DebtPayment;
+use App\Models\DebtSupplier;
+use App\Models\Import;
 use Illuminate\Http\Request;
 
 class DebtsController extends Controller
@@ -298,6 +300,55 @@ class DebtsController extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 'error' => 'Failed to generate report.',
+                'message' => $e->getMessage(),
+            ], 500);
+        }
+    }
+    public function recordSupplierDebt(Request $request)
+    {
+        try {
+            // Validate tham số
+            $validated = $request->validate([
+                'import_id' => 'required|integer|exists:imports,id',
+                'remaining_amount' => 'required|numeric|min:0',
+            ]);
+
+            // Lấy thông tin phiếu nhập hàng
+            $import = Import::findOrFail($validated['import_id']);
+
+            // Kiểm tra remaining_amount không lớn hơn total_amount
+            if ($validated['remaining_amount'] > $import->total_amount) {
+                return response()->json([
+                    'error' => 'Validation failed.',
+                    'message' => 'Remaining amount cannot exceed total amount of the import.',
+                ], 400);
+            }
+
+            // Tạo bản ghi công nợ nhà cung cấp
+            $debt = DebtSupplier::create([
+                'import_id' => $validated['import_id'],
+                'supplier_id' => $import->supplier_id,
+                'remaining_amount' => $validated['remaining_amount'],
+            ]);
+
+            // Trả về phản hồi
+            return response()->json([
+                'message' => 'Supplier debt recorded successfully',
+                'debt_id' => $debt->id,
+            ], 201);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'error' => 'Validation failed.',
+                'message' => $e->errors(),
+            ], 400);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json([
+                'error' => 'Import not found.',
+                'message' => 'The specified import does not exist.',
+            ], 404);
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'Failed to record supplier debt.',
                 'message' => $e->getMessage(),
             ], 500);
         }
