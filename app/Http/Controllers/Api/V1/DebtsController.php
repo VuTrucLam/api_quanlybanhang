@@ -353,4 +353,75 @@ class DebtsController extends Controller
             ], 500);
         }
     }
+    public function listSupplierDebts(Request $request)
+    {
+        try {
+            // Validate tham số
+            $validated = $request->validate([
+                'supplier_id' => 'nullable|integer|exists:suppliers,id',
+                'start_date' => 'nullable|date_format:Y-m-d',
+                'end_date' => 'nullable|date_format:Y-m-d|after_or_equal:start_date',
+                'page' => 'nullable|integer|min:1',
+                'limit' => 'nullable|integer|min:1|max:100',
+            ]);
+
+            // Lấy giá trị mặc định cho page và limit
+            $page = $validated['page'] ?? 1;
+            $limit = $validated['limit'] ?? 10;
+
+            // Tạo query cho debts_supplier
+            $query = DebtSupplier::with('import');
+
+            // Lọc theo supplier_id
+            if (isset($validated['supplier_id'])) {
+                $query->where('supplier_id', $validated['supplier_id']);
+            }
+
+            // Lọc theo khoảng thời gian
+            if (isset($validated['start_date'])) {
+                $query->whereDate('created_at', '>=', $validated['start_date']);
+            }
+            if (isset($validated['end_date'])) {
+                $query->whereDate('created_at', '<=', $validated['end_date']);
+            }
+
+            // Tính tổng số bản ghi
+            $total = $query->count();
+
+            // Phân trang
+            $debts = $query->offset(($page - 1) * $limit)
+                          ->limit($limit)
+                          ->get()
+                          ->map(function ($debt) {
+                              return [
+                                  'debt_id' => $debt->id,
+                                  'import_id' => $debt->import_id,
+                                  'supplier_id' => $debt->supplier_id,
+                                  'warehouse_id' => $debt->import->warehouse_id,
+                                  'amount' => $debt->import->total_amount,
+                                  'remaining_amount' => $debt->remaining_amount,
+                                  'created_at' => $debt->created_at->toISOString(),
+                                  'updated_at' => $debt->updated_at->toISOString(),
+                              ];
+                          });
+
+            // Trả về phản hồi
+            return response()->json([
+                'debts' => $debts,
+                'total' => $total,
+                'page' => $page,
+                'limit' => $limit,
+            ], 200);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'error' => 'Validation failed.',
+                'message' => $e->errors(),
+            ], 400);
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'Failed to retrieve supplier debts.',
+                'message' => $e->getMessage(),
+            ], 500);
+        }
+    }
 }
