@@ -529,4 +529,64 @@ class DebtsController extends Controller
             ], 500);
         }
     }
+    public function reportSupplierDebts(Request $request)
+    {
+        try {
+            // Validate tham số
+            $validated = $request->validate([
+                'start_date' => 'required|date_format:Y-m-d',
+                'end_date' => 'required|date_format:Y-m-d|after_or_equal:start_date',
+                'supplier_id' => 'nullable|integer|exists:suppliers,id',
+            ]);
+
+            // Lấy các debts_supplier trong khoảng thời gian
+            $query = DebtSupplier::with('import');
+
+            // Lọc theo supplier_id nếu có
+            if (isset($validated['supplier_id'])) {
+                $query->where('supplier_id', $validated['supplier_id']);
+            }
+
+            // Lọc theo khoảng thời gian
+            $query->whereBetween('created_at', [$validated['start_date'], $validated['end_date']]);
+
+            // Lấy danh sách debts
+            $debts = $query->get();
+
+            // Tính toán báo cáo
+            $totalDebt = $debts->sum(function ($debt) {
+                return $debt->import->total_amount ?? 0;
+            });
+
+            $totalRemaining = $debts->sum('remaining_amount');
+
+            // Tính total_paid từ supplier_debt_payments
+            $totalPaid = SupplierDebtPayment::whereIn('debt_id', $debts->pluck('id'))
+                                          ->whereBetween('payment_date', [$validated['start_date'], $validated['end_date']])
+                                          ->sum('amount');
+
+            // Trả về phản hồi
+            return response()->json([
+                'supplier_debts' => [
+                    'total_debt' => round($totalDebt, 2),
+                    'total_remaining' => round($totalRemaining, 2),
+                    'total_paid' => round($totalPaid, 2),
+                ],
+                'date_range' => [
+                    'start' => $validated['start_date'],
+                    'end' => $validated['end_date'],
+                ],
+            ], 200);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'error' => 'Validation failed.',
+                'message' => $e->errors(),
+            ], 400);
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'Failed to generate supplier report.',
+                'message' => $e->getMessage(),
+            ], 500);
+        }
+    }
 }
