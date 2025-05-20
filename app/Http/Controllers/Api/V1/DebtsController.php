@@ -424,4 +424,54 @@ class DebtsController extends Controller
             ], 500);
         }
     }
+    public function updateSupplierDebt(Request $request, $id)
+    {
+        try {
+            // Validate tham số
+            $validated = $request->validate([
+                'remaining_amount' => 'nullable|numeric|min:0',
+            ]);
+
+            // Tìm bản ghi công nợ
+            $debt = DebtSupplier::with('import')->findOrFail($id);
+
+            // Nếu remaining_amount được cung cấp, kiểm tra hợp lệ
+            if (isset($validated['remaining_amount'])) {
+                // So sánh với total_amount từ imports
+                if ($validated['remaining_amount'] > $debt->import->total_amount) {
+                    return response()->json([
+                        'error' => 'Validation failed.',
+                        'message' => 'Remaining amount cannot exceed the total amount of the import.',
+                    ], 400);
+                }
+
+                // Cập nhật remaining_amount
+                $debt->remaining_amount = $validated['remaining_amount'];
+            }
+
+            // Lưu thay đổi
+            $debt->save();
+
+            // Trả về phản hồi
+            return response()->json([
+                'message' => 'Supplier debt updated successfully',
+                'debt_id' => $debt->id,
+            ], 200);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'error' => 'Validation failed.',
+                'message' => $e->errors(),
+            ], 400);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json([
+                'error' => 'Debt not found.',
+                'message' => 'The specified debt does not exist.',
+            ], 404);
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'Failed to update supplier debt.',
+                'message' => $e->getMessage(),
+            ], 500);
+        }
+    }
 }

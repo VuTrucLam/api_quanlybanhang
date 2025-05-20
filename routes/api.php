@@ -144,5 +144,6 @@ Route::prefix('v1')->group(function () {
         Route::get('/debts/user/report', [DebtsController::class, 'report']);
         Route::post('/debts/supplier/record', [DebtsController::class, 'recordSupplierDebt']);
         Route::get('/debts/supplier/list', [DebtsController::class, 'listSupplierDebts']);
+        Route::put('/debts/supplier/update/{id}', [DebtsController::class, 'updateSupplierDebt']);
     });
 });
