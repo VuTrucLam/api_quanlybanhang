@@ -138,5 +138,6 @@ Route::prefix('v1')->group(function () {
 
         //debt
         Route::post('/debts/user/record', [DebtsController::class, 'record']);
+        Route::get('/debts/user/list', [DebtsController::class, 'list']);
     });
 });

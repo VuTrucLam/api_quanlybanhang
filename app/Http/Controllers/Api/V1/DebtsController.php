@@ -66,4 +66,75 @@ class DebtsController extends Controller
             ], 500);
         }
     }
+    public function list(Request $request)
+    {
+        try {
+            // Validate tham số
+            $validated = $request->validate([
+                'user_id' => 'nullable|integer|exists:users,id',
+                'start_date' => 'nullable|date_format:Y-m-d',
+                'end_date' => 'nullable|date_format:Y-m-d|after_or_equal:start_date',
+                'page' => 'nullable|integer|min:1',
+                'limit' => 'nullable|integer|min:1|max:100',
+            ]);
+
+            // Lấy giá trị mặc định cho page và limit
+            $page = $validated['page'] ?? 1;
+            $limit = $validated['limit'] ?? 10;
+
+            // Tạo query cho debts
+            $query = Debt::with('order');
+
+            // Lọc theo user_id
+            if (isset($validated['user_id'])) {
+                $query->where('user_id', $validated['user_id']);
+            }
+
+            // Lọc theo khoảng thời gian
+            if (isset($validated['start_date'])) {
+                $query->whereDate('created_at', '>=', $validated['start_date']);
+            }
+            if (isset($validated['end_date'])) {
+                $query->whereDate('created_at', '<=', $validated['end_date']);
+            }
+
+            // Tính tổng số bản ghi
+            $total = $query->count();
+
+            // Phân trang
+            $debts = $query->offset(($page - 1) * $limit)
+                          ->limit($limit)
+                          ->get()
+                          ->map(function ($debt) {
+                              return [
+                                  'debt_id' => $debt->id,
+                                  'user_id' => $debt->user_id,
+                                  'order_id' => $debt->order_id,
+                                  'amount' => $debt->order->total_amount,
+                                  'remaining_amount' => $debt->remaining_amount,
+                                  'order_status' => $debt->order->status,
+                                  'created_at' => $debt->created_at->toISOString(),
+                                  'updated_at' => $debt->updated_at->toISOString(),
+                              ];
+                          });
+
+            // Trả về phản hồi
+            return response()->json([
+                'debts' => $debts,
+                'total' => $total,
+                'page' => $page,
+                'limit' => $limit,
+            ], 200);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'error' => 'Validation failed.',
+                'message' => $e->errors(),
+            ], 400);
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'Failed to retrieve debts.',
+                'message' => $e->getMessage(),
+            ], 500);
+        }
+    }
 }
