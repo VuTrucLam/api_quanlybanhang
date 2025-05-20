@@ -242,4 +242,64 @@ class DebtsController extends Controller
             ], 500);
         }
     }
+    public function report(Request $request)
+    {
+        try {
+            // Validate tham số
+            $validated = $request->validate([
+                'start_date' => 'required|date_format:Y-m-d',
+                'end_date' => 'required|date_format:Y-m-d|after_or_equal:start_date',
+                'user_id' => 'nullable|integer|exists:users,id',
+            ]);
+
+            // Lấy các debts trong khoảng thời gian
+            $query = Debt::with('order');
+
+            // Lọc theo user_id nếu có
+            if (isset($validated['user_id'])) {
+                $query->where('user_id', $validated['user_id']);
+            }
+
+            // Lọc theo khoảng thời gian
+            $query->whereBetween('created_at', [$validated['start_date'], $validated['end_date']]);
+
+            // Lấy danh sách debts
+            $debts = $query->get();
+
+            // Tính toán báo cáo
+            $totalDebt = $debts->sum(function ($debt) {
+                return $debt->order->total_amount ?? 0;
+            });
+
+            $totalRemaining = $debts->sum('remaining_amount');
+
+            // Tính total_paid từ debt_payments
+            $totalPaid = DebtPayment::whereIn('debt_id', $debts->pluck('id'))
+                                  ->whereBetween('payment_date', [$validated['start_date'], $validated['end_date']])
+                                  ->sum('amount');
+
+            // Trả về phản hồi
+            return response()->json([
+                'user_debts' => [
+                    'total_debt' => round($totalDebt, 2),
+                    'total_remaining' => round($totalRemaining, 2),
+                    'total_paid' => round($totalPaid, 2),
+                ],
+                'date_range' => [
+                    'start' => $validated['start_date'],
+                    'end' => $validated['end_date'],
+                ],
+            ], 200);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'error' => 'Validation failed.',
+                'message' => $e->errors(),
+            ], 400);
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'Failed to generate report.',
+                'message' => $e->getMessage(),
+            ], 500);
+        }
+    }
 }
