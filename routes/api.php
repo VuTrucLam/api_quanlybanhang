@@ -15,6 +15,7 @@ use App\Http\Controllers\Api\V1\SalesController;
 use App\Http\Controllers\Api\V1\ShippingCarriersController;
 use App\Http\Controllers\Api\V1\OrdersController;
 use App\Http\Controllers\Api\V1\AssetsController;
+use App\Http\Controllers\Api\V1\DebtsController;
 
 Route::prefix('v1')->group(function () {
     // Public API: Không yêu cầu xác thực
@@ -134,5 +135,8 @@ Route::prefix('v1')->group(function () {
         Route::get('/assets/repair', [AssetsController::class, 'repair']);
         Route::get('/assets/discard', [AssetsController::class, 'discard']);
         Route::get('/assets/warranty', [AssetsController::class, 'warranty']);
+
+        //debt
+        Route::post('/debts/user/record', [DebtsController::class, 'record']);
     });
 });
