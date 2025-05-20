@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\V1;
 use App\Http\Controllers\Controller;
 use App\Models\Debt;
 use App\Models\Order;
+use App\Models\DebtPayment;
 use Illuminate\Http\Request;
 
 class DebtsController extends Controller
@@ -183,6 +184,60 @@ class DebtsController extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 'error' => 'Failed to update debt.',
+                'message' => $e->getMessage(),
+            ], 500);
+        }
+    }
+    public function payment(Request $request)
+    {
+        try {
+            // Validate tham số
+            $validated = $request->validate([
+                'debt_id' => 'required|integer|exists:debts,id',
+                'amount' => 'required|numeric|min:0',
+                'payment_date' => 'required|date_format:Y-m-d',
+            ]);
+
+            // Tìm bản ghi công nợ
+            $debt = Debt::findOrFail($validated['debt_id']);
+
+            // Kiểm tra amount không lớn hơn remaining_amount
+            if ($validated['amount'] > $debt->remaining_amount) {
+                return response()->json([
+                    'error' => 'Validation failed.',
+                    'message' => 'Payment amount cannot exceed the remaining debt amount.',
+                ], 400);
+            }
+
+            // Tạo bản ghi thanh toán
+            $payment = DebtPayment::create([
+                'debt_id' => $validated['debt_id'],
+                'amount' => $validated['amount'],
+                'payment_date' => $validated['payment_date'],
+            ]);
+
+            // Cập nhật remaining_amount
+            $debt->remaining_amount -= $validated['amount'];
+            $debt->save();
+
+            // Trả về phản hồi
+            return response()->json([
+                'message' => 'User debt payment recorded successfully',
+                'payment_id' => $payment->id,
+            ], 201);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'error' => 'Validation failed.',
+                'message' => $e->errors(),
+            ], 400);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json([
+                'error' => 'Debt not found.',
+                'message' => 'The specified debt does not exist.',
+            ], 404);
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'Failed to record payment.',
                 'message' => $e->getMessage(),
             ], 500);
         }
