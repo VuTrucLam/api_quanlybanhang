@@ -137,4 +137,54 @@ class DebtsController extends Controller
             ], 500);
         }
     }
+    public function update(Request $request, $id)
+    {
+        try {
+            // Validate tham số
+            $validated = $request->validate([
+                'remaining_amount' => 'nullable|numeric|min:0',
+            ]);
+
+            // Tìm bản ghi công nợ
+            $debt = Debt::with('order')->findOrFail($id);
+
+            // Nếu remaining_amount được cung cấp, kiểm tra hợp lệ
+            if (isset($validated['remaining_amount'])) {
+                // So sánh với total_amount từ orders
+                if ($validated['remaining_amount'] > $debt->order->total_amount) {
+                    return response()->json([
+                        'error' => 'Validation failed.',
+                        'message' => 'Remaining amount cannot exceed the total amount of the order.',
+                    ], 400);
+                }
+
+                // Cập nhật remaining_amount
+                $debt->remaining_amount = $validated['remaining_amount'];
+            }
+
+            // Lưu thay đổi
+            $debt->save();
+
+            // Trả về phản hồi
+            return response()->json([
+                'message' => 'User debt updated successfully',
+                'debt_id' => $debt->id,
+            ], 200);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'error' => 'Validation failed.',
+                'message' => $e->errors(),
+            ], 400);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json([
+                'error' => 'Debt not found.',
+                'message' => 'The specified debt does not exist.',
+            ], 404);
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'Failed to update debt.',
+                'message' => $e->getMessage(),
+            ], 500);
+        }
+    }
 }
